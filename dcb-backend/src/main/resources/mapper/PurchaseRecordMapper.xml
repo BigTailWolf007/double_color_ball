@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.dcb.purchase.mapper.PurchaseRecordMapper">
+
+    <resultMap id="BaseResultMap" type="com.dcb.purchase.entity.PurchaseRecord">
+        <id     column="fid"          property="id"/>
+        <result column="fissue"       property="issue"/>
+        <result column="fred1"        property="red1"/>
+        <result column="fred2"        property="red2"/>
+        <result column="fred3"        property="red3"/>
+        <result column="fred4"        property="red4"/>
+        <result column="fred5"        property="red5"/>
+        <result column="fred6"        property="red6"/>
+        <result column="fblue"        property="blue"/>
+        <result column="fquantity"    property="quantity"/>
+        <result column="fprize_level" property="prizeLevel"/>
+        <result column="fprize_money" property="prizeMoney"/>
+        <result column="fremark"      property="remark"/>
+        <result column="fcreated_at"  property="createdAt"/>
+    </resultMap>
+
+    <select id="selectPageByCondition" resultMap="BaseResultMap">
+        SELECT fid, fissue, fred1, fred2, fred3, fred4, fred5, fred6, fblue,
+               fquantity, fprize_level, fprize_money, fremark, fcreated_at
+        FROM t_purchase_record
+        <where>
+            <if test="issue != null and issue != ''">
+                AND fissue LIKE CONCAT('%', #{issue}, '%')
+            </if>
+            <if test="prizeLevel != null">
+                AND fprize_level = #{prizeLevel}
+            </if>
+        </where>
+        ORDER BY fcreated_at DESC
+    </select>
+
+    <select id="selectSummary" resultType="java.util.Map">
+        SELECT
+            COALESCE(SUM(fquantity), 0)    AS totalQuantity,
+            COALESCE(SUM(fprize_money), 0) AS totalPrizeMoney
+        FROM t_purchase_record
+    </select>
+    <update id="batchUpdatePrize" parameterType="java.util.List">
+        <foreach collection="list" item="r" separator=";">
+            UPDATE t_purchase_record
+            SET fprize_level = #{r.prizeLevel},
+                fprize_money = #{r.prizeMoney}
+            WHERE fid = #{r.id}
+        </foreach>
+    </update>
+
+</mapper>

@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.dcb.predict.mapper.PredictRecordMapper">
+
+    <resultMap id="BaseResultMap" type="com.dcb.predict.entity.PredictRecord">
+        <id     column="fid"          property="id"/>
+        <result column="fissue"       property="issue"/>
+        <result column="fred1"        property="red1"/>
+        <result column="fred2"        property="red2"/>
+        <result column="fred3"        property="red3"/>
+        <result column="fred4"        property="red4"/>
+        <result column="fred5"        property="red5"/>
+        <result column="fred6"        property="red6"/>
+        <result column="fblue"        property="blue"/>
+        <result column="fhit_red"     property="hitRed"/>
+        <result column="fhit_blue"    property="hitBlue"/>
+        <result column="fprize_level" property="prizeLevel"/>
+        <result column="fcreated_at"  property="createdAt"/>
+    </resultMap>
+
+    <select id="selectPageByIssue" resultMap="BaseResultMap">
+        SELECT fid, fissue, fred1, fred2, fred3, fred4, fred5, fred6, fblue,
+               fhit_red, fhit_blue, fprize_level, fcreated_at
+        FROM t_predict_record
+        <where>
+            <if test="issue != null and issue != ''">
+                AND fissue LIKE CONCAT('%', #{issue}, '%')
+            </if>
+        </where>
+        ORDER BY fissue DESC, fcreated_at DESC
+    </select>
+    <update id="batchUpdateHitResult" parameterType="java.util.List">
+        <foreach collection="list" item="r" separator=";">
+            UPDATE t_predict_record
+            SET fhit_red     = #{r.hitRed},
+                fhit_blue    = #{r.hitBlue},
+                fprize_level = #{r.prizeLevel}
+            WHERE fid = #{r.id}
+        </foreach>
+    </update>
+
+</mapper>
