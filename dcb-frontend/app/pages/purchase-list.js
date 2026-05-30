@@ -1,5 +1,6 @@
 const PurchaseList = (() => {
   let state = { page: 1, size: 20, total: 0, issue: '', prizeLevel: '' }
+  let selectedIds = new Set()
 
   const prizeLevelOptions = [
     { label: '一等奖', value: 1 }, { label: '二等奖', value: 2 },
@@ -9,10 +10,12 @@ const PurchaseList = (() => {
   ]
 
   function render() {
+    selectedIds = new Set()
     document.getElementById('main-content').innerHTML = `
       <div class="card">
         <div class="card-header">
           <span>购买记录列表</span>
+          <button class="btn btn-warning" id="btn-recalc" disabled>重新计算盈亏</button>
         </div>
         <div class="card-body">
           <div class="filter-bar">
@@ -30,12 +33,13 @@ const PurchaseList = (() => {
             <table>
               <thead>
                 <tr>
+                  <th style="width:36px;"><input type="checkbox" id="check-all" title="全选/取消" /></th>
                   <th>期号</th><th>红球</th><th>蓝球</th><th class="text-center">注数</th>
                   <th class="text-center">中奖等级</th><th class="text-right">总奖金</th>
                   <th>备注</th><th>操作</th>
                 </tr>
               </thead>
-              <tbody id="table-body"><tr><td colspan="8" class="text-center" style="color:#909399;">加载中...</td></tr></tbody>
+              <tbody id="table-body"><tr><td colspan="9" class="text-center" style="color:#909399;">加载中...</td></tr></tbody>
             </table>
           </div>
           <div class="pagination" id="pagination"></div>
@@ -59,15 +63,32 @@ const PurchaseList = (() => {
       document.getElementById('q-level').value = ''
       fetchList()
     })
+    document.getElementById('btn-recalc').addEventListener('click', handleRecalc)
+    document.getElementById('check-all').addEventListener('change', () => {
+      const tbody = document.getElementById('table-body')
+      const checkAll = document.getElementById('check-all')
+      if (!tbody || !checkAll) return
+      tbody.querySelectorAll('.row-check').forEach(cb => {
+        cb.checked = checkAll.checked
+        const id = Number(cb.dataset.id)
+        checkAll.checked ? selectedIds.add(id) : selectedIds.delete(id)
+      })
+      updateRecalcBtn()
+    })
 
     fetchList()
     fetchSummary()
   }
 
+  function updateRecalcBtn() {
+    const btn = document.getElementById('btn-recalc')
+    if (btn) btn.disabled = selectedIds.size === 0
+  }
+
   async function fetchList() {
     const tbody = document.getElementById('table-body')
     if (!tbody) return
-    tbody.innerHTML = '<tr><td colspan="8" class="text-center" style="color:#909399;">加载中...</td></tr>'
+    tbody.innerHTML = '<tr><td colspan="9" class="text-center" style="color:#909399;">加载中...</td></tr>'
     try {
       const params = { page: state.page, size: state.size }
       if (state.issue) params.issue = state.issue
@@ -77,11 +98,13 @@ const PurchaseList = (() => {
       state.total = res.data.total || 0
 
       if (!list.length) {
-        tbody.innerHTML = '<tr><td colspan="8" class="text-center" style="color:#909399;">暂无数据</td></tr>'
+        tbody.innerHTML = '<tr><td colspan="9" class="text-center" style="color:#909399;">暂无数据</td></tr>'
       } else {
         tbody.innerHTML = list.map(row => {
           const prizeColor = row.prizeMoney > 0 ? '#67c23a' : '#909399'
+          const checked = selectedIds.has(row.id) ? 'checked' : ''
           return `<tr>
+            <td style="text-align:center;"><input type="checkbox" class="row-check" data-id="${row.id}" ${checked} /></td>
             <td>${row.issue}</td>
             <td>${renderReds(row.reds)}</td>
             <td>${renderBlue(row.blue)}</td>
@@ -93,17 +116,41 @@ const PurchaseList = (() => {
           </tr>`
         }).join('')
 
-        tbody.querySelectorAll('[data-id]').forEach(btn => {
+        // 行复选框事件
+        tbody.querySelectorAll('.row-check').forEach(cb => {
+          cb.addEventListener('change', () => {
+            const id = Number(cb.dataset.id)
+            cb.checked ? selectedIds.add(id) : selectedIds.delete(id)
+            syncCheckAll()
+            updateRecalcBtn()
+          })
+        })
+
+        // 删除按钮事件
+        tbody.querySelectorAll('[data-id]:not(.row-check)').forEach(btn => {
           btn.addEventListener('click', () => handleDelete(btn.dataset.id))
         })
+
+        syncCheckAll()
       }
 
       renderPagination('pagination', state.page, state.size, state.total, (p, s) => {
         state.page = p; state.size = s; fetchList()
       })
     } catch (e) {
-      if (tbody) tbody.innerHTML = '<tr><td colspan="8" class="text-center" style="color:#f56c6c;">加载失败</td></tr>'
+      if (tbody) tbody.innerHTML = '<tr><td colspan="9" class="text-center" style="color:#f56c6c;">加载失败</td></tr>'
     }
+  }
+
+  function syncCheckAll() {
+    const checkAll = document.getElementById('check-all')
+    const tbody = document.getElementById('table-body')
+    if (!checkAll || !tbody) return
+    const cbs = tbody.querySelectorAll('.row-check')
+    if (!cbs.length) { checkAll.checked = false; checkAll.indeterminate = false; return }
+    const checkedCount = [...cbs].filter(c => c.checked).length
+    checkAll.checked = checkedCount === cbs.length
+    checkAll.indeterminate = checkedCount > 0 && checkedCount < cbs.length
   }
 
   async function fetchSummary() {
@@ -126,7 +173,20 @@ const PurchaseList = (() => {
     try {
       await confirm('确认删除该条购买记录？')
       await api.delete(`/api/purchase/${id}`)
+      selectedIds.delete(Number(id))
       toast('删除成功')
+      fetchList()
+      fetchSummary()
+    } catch (e) {}
+  }
+
+  async function handleRecalc() {
+    if (!selectedIds.size) return
+    try {
+      await confirm(`确认对已勾选的 ${selectedIds.size} 条记录重新计算盈亏？`)
+      const res = await api.post('/api/purchase/recalc', [...selectedIds])
+      toast(`重算完成，共更新 ${res.data} 条记录`)
+      selectedIds.clear()
       fetchList()
       fetchSummary()
     } catch (e) {}

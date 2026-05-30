@@ -13,6 +13,7 @@
         <result column="fred5"        property="red5"/>
         <result column="fred6"        property="red6"/>
         <result column="fblue"        property="blue"/>
+        <result column="fball_key"    property="ballKey"/>
         <result column="fhit_red"     property="hitRed"/>
         <result column="fhit_blue"    property="hitBlue"/>
         <result column="fprize_level" property="prizeLevel"/>
@@ -20,7 +21,7 @@
     </resultMap>
 
     <select id="selectPageByIssue" resultMap="BaseResultMap">
-        SELECT fid, fissue, fred1, fred2, fred3, fred4, fred5, fred6, fblue,
+        SELECT fid, fissue, fred1, fred2, fred3, fred4, fred5, fred6, fblue, fball_key,
                fhit_red, fhit_blue, fprize_level, fcreated_at
         FROM t_predict_record
         <where>
@@ -30,6 +31,29 @@
         </where>
         ORDER BY fissue DESC, fcreated_at DESC
     </select>
+
+    <select id="selectBallKeysByIssue" resultType="string">
+        SELECT fball_key FROM t_predict_record WHERE fissue = #{issue}
+    </select>
+
+    <select id="selectBallKeysByIssues" resultType="com.dcb.predict.dto.BallKeyRowDTO">
+        SELECT fissue AS issue, fball_key AS ballKey FROM t_predict_record
+        WHERE fissue IN
+        <foreach collection="issues" item="i" open="(" separator="," close=")">
+            #{i}
+        </foreach>
+    </select>
+    <insert id="batchInsert" parameterType="java.util.List" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO t_predict_record
+            (fissue, fred1, fred2, fred3, fred4, fred5, fred6, fblue, fball_key,
+             fhit_red, fhit_blue, fprize_level)
+        VALUES
+        <foreach collection="list" item="r" separator=",">
+            (#{r.issue}, #{r.red1}, #{r.red2}, #{r.red3}, #{r.red4}, #{r.red5}, #{r.red6},
+             #{r.blue}, #{r.ballKey}, #{r.hitRed}, #{r.hitBlue}, #{r.prizeLevel})
+        </foreach>
+    </insert>
+
     <update id="batchUpdateHitResult" parameterType="java.util.List">
         <foreach collection="list" item="r" separator=";">
             UPDATE t_predict_record

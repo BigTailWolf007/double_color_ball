@@ -123,6 +123,9 @@ const PurchaseAdd = (() => {
 
     try {
       await api.post('/api/purchase/add', payload)
+      // 录入后按期号触发盈亏计算
+      const issues = [...new Set(rows.map(r => r.issue))]
+      await Promise.allSettled(issues.map(issue => api.post(`/api/purchase/calc/${issue}`)))
       toast('录入成功')
       router.navigate('purchase-list')
     } catch (e) {}

@@ -2,7 +2,6 @@ package com.dcb.purchase.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.dcb.common.enums.PrizeLevel;
 import com.dcb.common.result.PageResult;
 import com.dcb.common.util.LotteryUtils;
@@ -52,6 +51,7 @@ public class PurchaseService {
                     .red1(dto.getRed1()).red2(dto.getRed2()).red3(dto.getRed3())
                     .red4(dto.getRed4()).red5(dto.getRed5()).red6(dto.getRed6())
                     .blue(dto.getBlue())
+                    .ballKey(LotteryUtils.buildBallKey(dto))
                     .quantity(dto.getQuantity())
                     .remark(dto.getRemark())
                     .build();
@@ -67,6 +67,32 @@ public class PurchaseService {
             purchaseRecordMapper.insert(record);
         }
         log.info("购买记录录入完成，共{}组", dtoList.size());
+    }
+
+    /**
+     * 按 ID 列表强制重算中奖等级（无论是否已计算过）
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public int recalcByIds(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) return 0;
+        List<PurchaseRecord> records = purchaseRecordMapper.selectBatchIds(ids);
+        if (records.isEmpty()) return 0;
+
+        // 按期号分组，批量查开奖号码
+        Map<String, LotteryResult> lotteryCache = new HashMap<>();
+        List<PurchaseRecord> toUpdate = new ArrayList<>();
+        for (PurchaseRecord record : records) {
+            LotteryResult lottery = lotteryCache.computeIfAbsent(
+                    record.getIssue(), lotteryService::getByIssue);
+            if (lottery == null) continue;
+            calcAndFill(record, lottery);
+            toUpdate.add(record);
+        }
+        if (!toUpdate.isEmpty()) {
+            purchaseRecordMapper.batchUpdatePrize(toUpdate);
+        }
+        log.info("按ID重算完成，共更新 {} 条记录", toUpdate.size());
+        return toUpdate.size();
     }
 
     /**

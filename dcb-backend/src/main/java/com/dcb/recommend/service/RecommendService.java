@@ -2,15 +2,21 @@ package com.dcb.recommend.service;
 
 import com.dcb.common.exception.BizException;
 import com.dcb.recommend.dto.RecommendQueryDTO;
+import com.dcb.recommend.vo.RecommendCacheVO;
 import com.dcb.recommend.vo.RecommendResultVO;
 import com.dcb.recommend.vo.RecommendResultVO.NumberGroupVO;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.HashSet;
+import java.util.TreeSet;
 
 /**
  * 号码推荐服务：根据多维度过滤条件筛选合法号码组合
@@ -18,31 +24,53 @@ import java.util.HashSet;
 @Service
 public class RecommendService {
 
-    private static final int MAX_RESULT = 10000;
+    private static final int MAX_RESULT = 1000;
+
+    // 自注入以确保 @Cacheable 通过 Spring AOP 代理生效（避免同类内部调用绕过代理）
+    @Lazy
+    @Autowired
+    private RecommendService self;
 
     public RecommendResultVO generate(RecommendQueryDTO dto) {
-        // 参数校验
         validateParams(dto);
 
+        // 用查询条件（不含分页）生成缓存 key，命中缓存则跳过全量计算
+        String cacheKey = buildCacheKey(dto);
+        RecommendCacheVO cached = self.computeAllGroups(cacheKey, dto);
+
+        // 分页切片
+        int page = dto.getPage() != null && dto.getPage() > 0 ? dto.getPage() : 1;
+        int pageSize = dto.getPageSize() != null && dto.getPageSize() > 0 ? dto.getPageSize() : 20;
+        int fromIndex = (page - 1) * pageSize;
+        int toIndex = Math.min(fromIndex + pageSize, cached.getGroups().size());
+        List<NumberGroupVO> pageList = fromIndex < cached.getGroups().size()
+                ? cached.getGroups().subList(fromIndex, toIndex) : new ArrayList<>();
+
+        return RecommendResultVO.builder()
+                .total(cached.getTotal())
+                .truncated(cached.isTruncated())
+                .list(pageList)
+                .build();
+    }
+
+    /**
+     * 全量计算并缓存，相同条件只计算一次
+     * cacheKey 作为 Spring Cache 的 key，dto 用于实际计算
+     */
+    @Cacheable(cacheNames = "recommend", key = "#cacheKey")
+    public RecommendCacheVO computeAllGroups(String cacheKey, RecommendQueryDTO dto) {
         Set<Integer> excludeRedSet = dto.getExcludeRed() != null
                 ? new HashSet<>(dto.getExcludeRed()) : new HashSet<>();
         List<Integer> includeBlue = dto.getIncludeBlue();
-
-        // 解析区间比
         int[] zone = parseRatio3(dto.getZoneRatio());
-        // 解析奇偶比
         int[] oddEven = parseRatio2(dto.getOddEvenRatio());
 
-        // 枚举所有合法红球组合并过滤
         List<int[]> filteredReds = new ArrayList<>();
         int[] combo = new int[6];
         enumerateReds(1, 0, combo, filteredReds, dto, excludeRedSet, zone, oddEven);
 
-        // 组合蓝球，统计总数，截断超限结果
         List<NumberGroupVO> allGroups = new ArrayList<>();
         long total = 0;
-        boolean truncated = false;
-
         for (int[] reds : filteredReds) {
             for (int blue : includeBlue) {
                 total++;
@@ -50,39 +78,33 @@ public class RecommendService {
                     List<Integer> redList = new ArrayList<>(6);
                     for (int r : reds) redList.add(r);
                     allGroups.add(NumberGroupVO.builder().red(redList).blue(blue).build());
-                } else {
-                    truncated = true;
                 }
             }
         }
-
-        // 分页
-        int page = dto.getPage() != null && dto.getPage() > 0 ? dto.getPage() : 1;
-        int pageSize = dto.getPageSize() != null && dto.getPageSize() > 0 ? dto.getPageSize() : 20;
-        int fromIndex = (page - 1) * pageSize;
-        int toIndex = Math.min(fromIndex + pageSize, allGroups.size());
-        List<NumberGroupVO> pageList = fromIndex < allGroups.size()
-                ? allGroups.subList(fromIndex, toIndex) : new ArrayList<>();
-
-        return RecommendResultVO.builder()
-                .total(total)
-                .truncated(truncated)
-                .list(pageList)
-                .build();
+        return new RecommendCacheVO(total, total > MAX_RESULT, Collections.unmodifiableList(allGroups));
     }
 
     /**
-     * 递归枚举 C(33,6) 红球组合，边枚举边过滤
-     *
-     * @param start      本轮从哪个号码开始枚举，保证组合升序且不重复
-     * @param depth      当前已选红球数量（0~6），等于6时表示一组选完，触发过滤
-     * @param combo      长度为6的数组，存放当前正在构建的红球组合
-     * @param result     收集所有通过过滤的红球组合
-     * @param dto        原始查询条件，用于取 sumMin/sumMax 做和值过滤
-     * @param excludeRed 需要剔除的红球号码集合，枚举时跳过这些号码
-     * @param zone       解析后的区间比 int[3]（低区/中区/高区期望数量），null 表示不过滤
-     * @param oddEven    解析后的奇偶比 int[2]（奇数/偶数期望数量），null 表示不过滤
+     * 将查询条件（不含分页）序列化为稳定字符串，作为缓存 key
+     * excludeRed 和 includeBlue 排序后拼接，保证顺序不同但内容相同的请求命中同一缓存
      */
+    private String buildCacheKey(RecommendQueryDTO dto) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("sum:").append(dto.getSumMin()).append("-").append(dto.getSumMax());
+        sb.append("|zone:").append(dto.getZoneRatio());
+        sb.append("|oe:").append(dto.getOddEvenRatio());
+
+        if (dto.getExcludeRed() != null && !dto.getExcludeRed().isEmpty()) {
+            List<Integer> sorted = new ArrayList<>(new TreeSet<>(dto.getExcludeRed()));
+            sb.append("|ex:").append(sorted);
+        }
+        if (dto.getIncludeBlue() != null && !dto.getIncludeBlue().isEmpty()) {
+            List<Integer> sorted = new ArrayList<>(new TreeSet<>(dto.getIncludeBlue()));
+            sb.append("|blue:").append(sorted);
+        }
+        return sb.toString();
+    }
+
     private void enumerateReds(int start, int depth, int[] combo,
                                List<int[]> result,
                                RecommendQueryDTO dto,
@@ -101,17 +123,13 @@ public class RecommendService {
         }
     }
 
-    /** 检查红球组合是否满足所有过滤条件 */
     private boolean matchesRedFilters(int[] combo, RecommendQueryDTO dto, int[] zone, int[] oddEven) {
-        // 和值过滤
         if (dto.getSumMin() != null || dto.getSumMax() != null) {
             int sum = 0;
             for (int n : combo) sum += n;
             if (dto.getSumMin() != null && sum < dto.getSumMin()) return false;
             if (dto.getSumMax() != null && sum > dto.getSumMax()) return false;
         }
-
-        // 区间比过滤
         if (zone != null) {
             int low = 0, mid = 0, high = 0;
             for (int n : combo) {
@@ -121,8 +139,6 @@ public class RecommendService {
             }
             if (low != zone[0] || mid != zone[1] || high != zone[2]) return false;
         }
-
-        // 奇偶比过滤
         if (oddEven != null) {
             int odd = 0, even = 0;
             for (int n : combo) {
@@ -131,11 +147,9 @@ public class RecommendService {
             }
             if (odd != oddEven[0] || even != oddEven[1]) return false;
         }
-
         return true;
     }
 
-    /** 解析"低:中:高"格式，返回 int[3]，不填返回 null */
     private int[] parseRatio3(String ratio) {
         if (ratio == null || ratio.trim().isEmpty()) return null;
         String[] parts = ratio.trim().split(":");
@@ -150,7 +164,6 @@ public class RecommendService {
         return r;
     }
 
-    /** 解析"奇:偶"格式，返回 int[2]，不填返回 null */
     private int[] parseRatio2(String ratio) {
         if (ratio == null || ratio.trim().isEmpty()) return null;
         String[] parts = ratio.trim().split(":");

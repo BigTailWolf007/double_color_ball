@@ -32,4 +32,9 @@ public interface PurchaseRecordMapper extends BaseMapper<PurchaseRecord> {
      * 批量更新中奖等级和奖金
      */
     void batchUpdatePrize(@Param("list") List<PurchaseRecord> list);
+
+    /**
+     * 查询指定期号已存在的所有 ballKey
+     */
+    List<String> selectBallKeysByIssue(@Param("issue") String issue);
 }

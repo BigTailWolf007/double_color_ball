@@ -52,6 +52,7 @@ public class LotteryService {
 
         int success = 0, skip = 0, fail = 0;
         List<String> failDetails = new ArrayList<>();
+        List<String> successIssues = new ArrayList<>();
         log.info("开始导入开奖号码文件：{}", filename);
 
         try (BufferedReader reader = new BufferedReader(
@@ -73,8 +74,8 @@ public class LotteryService {
                         continue;
                     }
                     lotteryResultMapper.insert(result);
-                    success++;
-                } catch (Exception e) {
+                    successIssues.add(result.getIssue());
+                    success++;                } catch (Exception e) {
                     log.warn("第{}行解析失败：{}", lineNum, e.getMessage());
                     fail++;
                     failDetails.add("第" + lineNum + "行：" + e.getMessage());
@@ -91,6 +92,7 @@ public class LotteryService {
         result.put("skip", skip);
         result.put("fail", fail);
         result.put("failDetails", failDetails);
+        result.put("issues", successIssues);
         return result;
     }
 
@@ -118,6 +120,7 @@ public class LotteryService {
                 .issue(issue)
                 .red1(r1).red2(r2).red3(r3).red4(r4).red5(r5).red6(r6)
                 .blue(blue)
+                .ballKey(LotteryUtils.buildBallKey(issue, r1, r2, r3, r4, r5, r6, blue))
                 .build();
     }
 
@@ -136,6 +139,7 @@ public class LotteryService {
                 .red1(dto.getRed1()).red2(dto.getRed2()).red3(dto.getRed3())
                 .red4(dto.getRed4()).red5(dto.getRed5()).red6(dto.getRed6())
                 .blue(dto.getBlue())
+                .ballKey(LotteryUtils.buildBallKey(dto))
                 .build();
         try {
             lotteryResultMapper.insert(entity);
@@ -176,6 +180,19 @@ public class LotteryService {
         return lotteryResultMapper.selectOne(
                 new LambdaQueryWrapper<LotteryResult>()
                         .eq(LotteryResult::getIssue, issue));
+    }
+
+    /**
+     * 按期号列表批量查询开奖号码，返回 issue -> LotteryResult 映射
+     */
+    public Map<String, LotteryResult> getByIssues(List<String> issues) {
+        if (issues == null || issues.isEmpty()) return new HashMap<>();
+        List<LotteryResult> list = lotteryResultMapper.selectByIssues(issues);
+        Map<String, LotteryResult> result = new HashMap<>();
+        for (LotteryResult r : list) {
+            result.put(r.getIssue(), r);
+        }
+        return result;
     }
 
     private LotteryResultVO toVO(LotteryResult r) {

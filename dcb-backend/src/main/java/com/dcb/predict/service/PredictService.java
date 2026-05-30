@@ -7,6 +7,7 @@ import com.dcb.common.result.PageResult;
 import com.dcb.common.util.LotteryUtils;
 import com.dcb.lottery.entity.LotteryResult;
 import com.dcb.lottery.service.LotteryService;
+import com.dcb.predict.dto.BallKeyRowDTO;
 import com.dcb.predict.dto.PredictSaveDTO;
 import com.dcb.predict.entity.PredictRecord;
 import com.dcb.predict.mapper.PredictRecordMapper;
@@ -18,7 +19,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * 预测号码服务
@@ -32,25 +38,52 @@ public class PredictService {
     private final LotteryService lotteryService;
 
     /**
-     * 保存预测号码，若该期已有开奖号码则立即计算命中结果
+     * 保存预测号码，若该期已有开奖号码则立即计算命中结果，跳过同期重复号码
      */
     @Transactional(rollbackFor = Exception.class)
     public void save(List<PredictSaveDTO> dtoList) {
         log.info("保存预测号码，共{}组", dtoList.size());
+
+        // 1. 提取所有不重复期号
+        List<String> issues = dtoList.stream().map(PredictSaveDTO::getIssue).distinct().collect(Collectors.toList());
+
+        // 2. 批量查已存在的 ballKey，按期号分组
+        Map<String, Set<String>> existingKeyMap = new HashMap<>();
+        for (String issue : issues) {
+            existingKeyMap.put(issue, new HashSet<>());
+        }
+        List<BallKeyRowDTO> existingRows = predictRecordMapper.selectBallKeysByIssues(issues);
+        for (BallKeyRowDTO row : existingRows) {
+            existingKeyMap.computeIfAbsent(row.getIssue(), k -> new HashSet<>()).add(row.getBallKey());
+        }
+
+        // 3. 批量查开奖号码
+        Map<String, LotteryResult> lotteryCache = lotteryService.getByIssues(issues);
+
+        // 4. 逐条处理，去重后收集待插入记录
+        int skip = 0;
+        List<PredictRecord> toInsert = new ArrayList<>();
         for (PredictSaveDTO dto : dtoList) {
             LotteryUtils.validateRed(Arrays.asList(
                     dto.getRed1(), dto.getRed2(), dto.getRed3(),
                     dto.getRed4(), dto.getRed5(), dto.getRed6()));
             LotteryUtils.validateBlue(dto.getBlue());
 
+            String key = LotteryUtils.buildBallKey(dto);
+            if (!existingKeyMap.get(dto.getIssue()).add(key)) {
+                skip++;
+                continue;
+            }
+
             PredictRecord record = PredictRecord.builder()
                     .issue(dto.getIssue())
                     .red1(dto.getRed1()).red2(dto.getRed2()).red3(dto.getRed3())
                     .red4(dto.getRed4()).red5(dto.getRed5()).red6(dto.getRed6())
                     .blue(dto.getBlue())
+                    .ballKey(key)
                     .build();
 
-            LotteryResult lottery = lotteryService.getByIssue(dto.getIssue());
+            LotteryResult lottery = lotteryCache.get(dto.getIssue());
             if (lottery != null) {
                 calcAndFill(record, lottery);
                 log.debug("期号 {} 已开奖，立即计算命中结果：{}", dto.getIssue(),
@@ -58,9 +91,14 @@ public class PredictService {
             } else {
                 log.debug("期号 {} 暂无开奖号码，待后续补算", dto.getIssue());
             }
-            predictRecordMapper.insert(record);
+            toInsert.add(record);
         }
-        log.info("预测号码保存完成，共{}组", dtoList.size());
+
+        // 5. 批量插入
+        if (!toInsert.isEmpty()) {
+            predictRecordMapper.batchInsert(toInsert);
+        }
+        log.info("预测号码保存完成，共{}组，跳过重复{}组", toInsert.size(), skip);
     }
 
     /**

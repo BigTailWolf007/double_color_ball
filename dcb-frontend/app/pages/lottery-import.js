@@ -48,6 +48,10 @@ const LotteryImport = (() => {
       const res = await api.postForm('/api/lottery/import', formData)
       const r = res.data
       toast(`导入完成：成功 ${r.success} 条`)
+      // 导入成功后，对所有成功导入的期号触发购买记录盈亏计算
+      if (r.success > 0 && r.issues && r.issues.length) {
+        Promise.allSettled(r.issues.map(issue => api.post(`/api/purchase/calc/${issue}`)))
+      }
       renderResult(r)
     } catch (e) {
       area.innerHTML = `

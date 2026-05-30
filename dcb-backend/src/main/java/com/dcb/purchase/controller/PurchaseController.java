@@ -39,6 +39,12 @@ public class PurchaseController {
         return Result.success(purchaseService.calc(issue));
     }
 
+    /** 按 ID 列表强制重算中奖等级，返回更新条数 */
+    @PostMapping("/recalc")
+    public Result<Integer> recalc(@RequestBody List<Long> ids) {
+        return Result.success(purchaseService.recalcByIds(ids));
+    }
+
     /** 删除购买记录 */
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {

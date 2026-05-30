@@ -58,6 +58,10 @@ public class PurchaseRecord {
     @TableField("fblue")
     private Integer blue;
 
+    /** 号码复合键：期号-红1-红2-红3-红4-红5-红6-蓝 */
+    @TableField("fball_key")
+    private String ballKey;
+
     /** 注数 */
     @TableField("fquantity")
     private Integer quantity;

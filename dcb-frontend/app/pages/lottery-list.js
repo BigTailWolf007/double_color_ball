@@ -155,6 +155,8 @@ const LotteryList = (() => {
         red4: sorted[3], red5: sorted[4], red6: sorted[5],
         blue: formBlue
       })
+      // 录入开奖号码后触发该期购买记录的盈亏计算
+      api.post(`/api/purchase/calc/${issue}`).catch(() => {})
       toast('录入成功')
       closeModal()
       fetchList()

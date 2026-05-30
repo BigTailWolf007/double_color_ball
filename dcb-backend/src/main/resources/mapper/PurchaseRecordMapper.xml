@@ -13,6 +13,7 @@
         <result column="fred5"        property="red5"/>
         <result column="fred6"        property="red6"/>
         <result column="fblue"        property="blue"/>
+        <result column="fball_key"    property="ballKey"/>
         <result column="fquantity"    property="quantity"/>
         <result column="fprize_level" property="prizeLevel"/>
         <result column="fprize_money" property="prizeMoney"/>
@@ -21,7 +22,7 @@
     </resultMap>
 
     <select id="selectPageByCondition" resultMap="BaseResultMap">
-        SELECT fid, fissue, fred1, fred2, fred3, fred4, fred5, fred6, fblue,
+        SELECT fid, fissue, fred1, fred2, fred3, fred4, fred5, fred6, fblue, fball_key,
                fquantity, fprize_level, fprize_money, fremark, fcreated_at
         FROM t_purchase_record
         <where>
@@ -33,6 +34,10 @@
             </if>
         </where>
         ORDER BY fcreated_at DESC
+    </select>
+
+    <select id="selectBallKeysByIssue" resultType="string">
+        SELECT fball_key FROM t_purchase_record WHERE fissue = #{issue}
     </select>
 
     <select id="selectSummary" resultType="java.util.Map">

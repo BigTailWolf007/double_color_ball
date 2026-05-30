@@ -4,15 +4,24 @@
 
 ## 快速启动
 
-```bash
-# 直接打开（本地文件，需后端支持 CORS）
-open app/index.html
+项目无构建步骤，通过静态服务器启动即可。
 
-# 推荐：通过静态服务器启动（避免跨域问题）
-npx serve app
-# 或
-python -m http.server 5173 --directory app
+```bash
+# 推荐：npx serve（Node.js 环境，端口随机分配）
+cd dcb-frontend/app
+npx serve -p 8081
+
+# 或指定端口
+npx serve -p 3000
 ```
+
+启动后终端会输出访问地址，例如：
+
+```
+INFO  Accepting connections at http://localhost:8081
+```
+
+> Windows 环境下 `python -m http.server` 可能因权限问题无法运行，推荐使用 `npx serve`。
 
 后端默认地址为 `http://localhost:8080`，如需修改请编辑 `app/api.js` 第一行：
 
@@ -99,16 +108,20 @@ api.delete('/api/lottery/123')
 |------|------|------|
 | GET | `/api/lottery/list` | 开奖号码列表，参数：page/size/issue/startDate/endDate |
 | POST | `/api/lottery/add` | 新增开奖号码 |
-| POST | `/api/lottery/import` | 上传 TXT 文件批量导入 |
+| POST | `/api/lottery/import` | 上传 TXT 文件批量导入，返回 success/skip/fail/issues |
 | DELETE | `/api/lottery/{id}` | 删除开奖号码 |
 | GET | `/api/purchase/list` | 购买记录列表，参数：page/size/issue/prizeLevel |
 | GET | `/api/purchase/summary` | 购买汇总（totalCost/totalPrizeMoney/profit） |
 | POST | `/api/purchase/add` | 批量新增购买记录（数组） |
+| POST | `/api/purchase/calc/{issue}` | 补算指定期号未计算记录的中奖等级 |
+| POST | `/api/purchase/recalc` | 按 ID 列表强制重算中奖等级（数组） |
 | DELETE | `/api/purchase/{id}` | 删除购买记录 |
 | GET | `/api/predict/list` | 预测号码列表，参数：page/size/issue |
-| POST | `/api/predict/calc/{issue}` | 手动补算指定期号 |
+| POST | `/api/predict/save` | 批量保存预测号码（数组） |
+| POST | `/api/predict/calc/{issue}` | 手动补算指定期号预测命中结果 |
 | DELETE | `/api/predict/{id}` | 删除单条预测记录 |
 | DELETE | `/api/predict/issue/{issue}` | 按期号批量删除预测记录 |
+| POST | `/api/recommend/generate` | 按条件生成推荐号码，参数：sumMin/sumMax/zoneRatio/oddEvenRatio/excludeRed/includeBlue/page/pageSize |
 
 所有接口响应格式：
 

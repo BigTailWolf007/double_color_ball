@@ -19,17 +19,23 @@ const Recommend = (() => {
           <div class="filter-bar" style="flex-wrap:wrap;gap:12px;align-items:flex-start;">
             <div style="display:flex;align-items:center;gap:8px;">
               <label>和值范围</label>
-              <input class="form-input" id="sum-min" type="number" placeholder="最小值" style="width:90px;" />
+              <input class="form-input" id="sum-min" type="number" min="21" max="183" placeholder="21~183" style="width:90px;" />
               <span>~</span>
-              <input class="form-input" id="sum-max" type="number" placeholder="最大值" style="width:90px;" />
+              <input class="form-input" id="sum-max" type="number" min="21" max="183" placeholder="21~183" style="width:90px;" />
             </div>
             <div style="display:flex;align-items:center;gap:8px;">
-              <label>区间比</label>
-              <input class="form-input" id="zone-ratio" type="text" placeholder="如 2:2:2" style="width:100px;" />
+              <label>区间比 <span style="color:#909399;font-size:12px;">低:中:高</span></label>
+              <input class="form-input zone-input" id="zone-low"  type="number" min="0" max="6" placeholder="低" style="width:56px;" />
+              <span>:</span>
+              <input class="form-input zone-input" id="zone-mid"  type="number" min="0" max="6" placeholder="中" style="width:56px;" />
+              <span>:</span>
+              <input class="form-input zone-input" id="zone-high" type="number" min="0" max="6" placeholder="高" style="width:56px;" />
             </div>
             <div style="display:flex;align-items:center;gap:8px;">
-              <label>奇偶比</label>
-              <input class="form-input" id="odd-even-ratio" type="text" placeholder="如 3:3" style="width:100px;" />
+              <label>奇偶比 <span style="color:#909399;font-size:12px;">奇:偶</span></label>
+              <input class="form-input" id="odd-count"  type="number" min="0" max="6" placeholder="奇" style="width:56px;" />
+              <span>:</span>
+              <input class="form-input" id="even-count" type="number" min="0" max="6" placeholder="偶" style="width:56px;" />
             </div>
           </div>
 
@@ -91,20 +97,66 @@ const Recommend = (() => {
     document.getElementById('btn-save-predict').addEventListener('click', handleSavePredict)
   }
 
-  async function handleGenerate() {
-    const sumMin = document.getElementById('sum-min').value.trim()
-    const sumMax = document.getElementById('sum-max').value.trim()
-    const zoneRatio = document.getElementById('zone-ratio').value.trim()
-    const oddEvenRatio = document.getElementById('odd-even-ratio').value.trim()
+  // 读取并校验输入，返回 { ok, body, error }
+  function readAndValidate() {
+    const sumMinVal = document.getElementById('sum-min').value.trim()
+    const sumMaxVal = document.getElementById('sum-max').value.trim()
+    const zoneLow  = document.getElementById('zone-low').value.trim()
+    const zoneMid  = document.getElementById('zone-mid').value.trim()
+    const zoneHigh = document.getElementById('zone-high').value.trim()
+    const oddVal   = document.getElementById('odd-count').value.trim()
+    const evenVal  = document.getElementById('even-count').value.trim()
 
     const body = {}
-    if (sumMin !== '') body.sumMin = parseInt(sumMin, 10)
-    if (sumMax !== '') body.sumMax = parseInt(sumMax, 10)
-    if (zoneRatio !== '') body.zoneRatio = zoneRatio
-    if (oddEvenRatio !== '') body.oddEvenRatio = oddEvenRatio
+
+    // 和值校验：21~183，最小值不能大于最大值
+    if (sumMinVal !== '') {
+      const v = parseInt(sumMinVal, 10)
+      if (v < 21 || v > 183) return { ok: false, error: '和值最小值范围为 21~183' }
+      body.sumMin = v
+    }
+    if (sumMaxVal !== '') {
+      const v = parseInt(sumMaxVal, 10)
+      if (v < 21 || v > 183) return { ok: false, error: '和值最大值范围为 21~183' }
+      body.sumMax = v
+    }
+    if (body.sumMin !== undefined && body.sumMax !== undefined && body.sumMin > body.sumMax) {
+      return { ok: false, error: '和值最小值不能大于最大值' }
+    }
+
+    // 区间比校验：三个框要么全填要么全空，每项 0~6，三项之和必须为 6
+    const zoneEmpty = zoneLow === '' && zoneMid === '' && zoneHigh === ''
+    const zoneFull  = zoneLow !== '' && zoneMid !== '' && zoneHigh !== ''
+    if (!zoneEmpty && !zoneFull) return { ok: false, error: '区间比请填写全部三项（低:中:高）' }
+    if (zoneFull) {
+      const zl = parseInt(zoneLow, 10), zm = parseInt(zoneMid, 10), zh = parseInt(zoneHigh, 10)
+      if ([zl, zm, zh].some(v => isNaN(v) || v < 0 || v > 6)) return { ok: false, error: '区间比每项范围为 0~6' }
+      if (zl + zm + zh !== 6) return { ok: false, error: '区间比三项之和必须等于 6' }
+      body.zoneRatio = `${zl}:${zm}:${zh}`
+    }
+
+    // 奇偶比校验：两个框要么全填要么全空，每项 0~6，两项之和必须为 6
+    const oeEmpty = oddVal === '' && evenVal === ''
+    const oeFull  = oddVal !== '' && evenVal !== ''
+    if (!oeEmpty && !oeFull) return { ok: false, error: '奇偶比请填写全部两项（奇:偶）' }
+    if (oeFull) {
+      const ov = parseInt(oddVal, 10), ev = parseInt(evenVal, 10)
+      if ([ov, ev].some(v => isNaN(v) || v < 0 || v > 6)) return { ok: false, error: '奇偶比每项范围为 0~6' }
+      if (ov + ev !== 6) return { ok: false, error: '奇偶比两项之和必须等于 6' }
+      body.oddEvenRatio = `${ov}:${ev}`
+    }
+
     if (state.excludeRed.length) body.excludeRed = [...state.excludeRed]
-    if (!state.includeBlue.length) { toast('请至少选择1个蓝球', 'error'); return }
+    if (!state.includeBlue.length) return { ok: false, error: '请至少选择1个蓝球' }
     body.includeBlue = [...state.includeBlue]
+
+    return { ok: true, body }
+  }
+
+  async function handleGenerate() {
+    const { ok, body, error } = readAndValidate()
+    if (!ok) { toast(error, 'warning'); return }
+
     body.page = 1
     body.pageSize = state.pageSize
 
@@ -119,14 +171,10 @@ const Recommend = (() => {
       state.truncated = data.truncated
       state.allGroups = data.list || []
       state.page = 1
-
-      // 缓存当前查询条件，用于翻页时重新请求
       state.lastQuery = body
-
       showSummary()
       renderResultPage()
     } catch (e) {
-      // api.js 已弹出错误 toast
     } finally {
       btn.disabled = false
       btn.textContent = '生成号码'
@@ -187,20 +235,27 @@ const Recommend = (() => {
     btn.disabled = true
     btn.textContent = '保存中...'
 
-    const results = await Promise.allSettled(
-      state.allGroups.map(g => api.post('/api/predict/save', {
+    const seen = new Set()
+    const payload = []
+    for (const g of state.allGroups) {
+      const key = [...g.red].sort((a, b) => a - b).join(',') + '|' + g.blue
+      if (seen.has(key)) continue
+      seen.add(key)
+      payload.push({
         issue,
         red1: g.red[0], red2: g.red[1], red3: g.red[2],
         red4: g.red[3], red5: g.red[4], red6: g.red[5],
         blue: g.blue
-      }))
-    )
-    const successCount = results.filter(r => r.status === 'fulfilled').length
-    const failCount = results.filter(r => r.status === 'rejected').length
+      })
+    }
+
+    try {
+      await api.post('/api/predict/save', payload)
+      toast(`保存完成：共保存 ${payload.length} 条${state.allGroups.length - payload.length > 0 ? `，去重 ${state.allGroups.length - payload.length} 条` : ''}`)
+    } catch (e) {}
 
     btn.disabled = false
     btn.textContent = '保存预测'
-    toast(`保存完成：成功 ${successCount} 条${failCount ? `，失败 ${failCount} 条` : ''}`)
   }
 
   function handleReset() {
