@@ -225,33 +225,20 @@ const Recommend = (() => {
   async function handleSavePredict() {
     const issue = document.getElementById('save-issue').value.trim()
     if (!issue) { toast('请输入期号', 'error'); return }
-    if (!state.allGroups.length) { toast('没有可保存的号码', 'error'); return }
+    if (!state.total) { toast('没有可保存的号码', 'error'); return }
 
     try {
-      await confirm(`确认将当前页 ${state.allGroups.length} 组号码保存为期号 ${issue} 的预测记录？`)
+      await confirm(`确认将全部 ${state.total.toLocaleString()} 组号码保存为期号 ${issue} 的预测记录？`)
     } catch (e) { return }
 
     const btn = document.getElementById('btn-save-predict')
     btn.disabled = true
     btn.textContent = '保存中...'
 
-    const seen = new Set()
-    const payload = []
-    for (const g of state.allGroups) {
-      const key = [...g.red].sort((a, b) => a - b).join(',') + '|' + g.blue
-      if (seen.has(key)) continue
-      seen.add(key)
-      payload.push({
-        issue,
-        red1: g.red[0], red2: g.red[1], red3: g.red[2],
-        red4: g.red[3], red5: g.red[4], red6: g.red[5],
-        blue: g.blue
-      })
-    }
-
     try {
-      await api.post('/api/predict/save', payload)
-      toast(`保存完成：共保存 ${payload.length} 条${state.allGroups.length - payload.length > 0 ? `，去重 ${state.allGroups.length - payload.length} 条` : ''}`)
+      const { page, pageSize, ...queryParams } = state.lastQuery
+      const res = await api.post('/api/recommend/save-predict', { ...queryParams, issue })
+      toast(`保存完成：共保存 ${res.data} 条`)
     } catch (e) {}
 
     btn.disabled = false

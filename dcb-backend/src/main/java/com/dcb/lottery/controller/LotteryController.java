@@ -14,6 +14,7 @@ import org.springframework.web.multipart.MultipartFile;
 import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -56,5 +57,11 @@ public class LotteryController {
             @RequestParam(defaultValue = "1") @Min(1) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
         return Result.success(lotteryService.list(issue, startDate, endDate, page, size));
+    }
+
+    /** 模糊查询期号，倒序返回最多10个，用于输入框下拉提示 */
+    @GetMapping("/issue-suggest")
+    public Result<List<String>> issueSuggest(@RequestParam(defaultValue = "") String q) {
+        return Result.success(lotteryService.suggestIssues(q));
     }
 }

@@ -33,11 +33,18 @@
                 AND fprize_level = #{prizeLevel}
             </if>
         </where>
-        ORDER BY fcreated_at DESC
+        ORDER BY fissue DESC, fcreated_at DESC
     </select>
 
     <select id="selectBallKeysByIssue" resultType="string">
         SELECT fball_key FROM t_purchase_record WHERE fissue = #{issue}
+    </select>
+
+    <select id="selectIssuesByKeyword" resultType="string">
+        SELECT DISTINCT fissue FROM t_purchase_record
+        WHERE fissue LIKE CONCAT('%', #{keyword}, '%')
+        ORDER BY fissue DESC
+        LIMIT #{limit}
     </select>
 
     <select id="selectSummary" resultType="java.util.Map">

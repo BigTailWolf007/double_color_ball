@@ -158,6 +158,13 @@ public class LotteryService {
     }
 
     /**
+     * 模糊查询期号，倒序返回最多10个
+     */
+    public List<String> suggestIssues(String keyword) {
+        return lotteryResultMapper.selectIssuesByKeyword(keyword == null ? "" : keyword, 10);
+    }
+
+    /**
      * 分页查询开奖号码
      */
     public PageResult<LotteryResultVO> list(String issue, LocalDate startDate, LocalDate endDate,

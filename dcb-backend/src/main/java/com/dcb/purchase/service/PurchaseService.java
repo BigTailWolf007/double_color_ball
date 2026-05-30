@@ -8,6 +8,7 @@ import com.dcb.common.util.LotteryUtils;
 import com.dcb.lottery.entity.LotteryResult;
 import com.dcb.lottery.service.LotteryService;
 import com.dcb.purchase.dto.PurchaseAddDTO;
+import com.dcb.purchase.dto.PurchaseUpdateDTO;
 import com.dcb.purchase.entity.PurchaseRecord;
 import com.dcb.purchase.mapper.PurchaseRecordMapper;
 import com.dcb.purchase.vo.PurchaseRecordVO;
@@ -120,11 +121,62 @@ public class PurchaseService {
     }
 
     /**
+     * 编辑购买记录（仅允许修改注数和备注），注数变更后重新计算奖金
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void update(Long id, PurchaseUpdateDTO dto) {
+        PurchaseRecord record = purchaseRecordMapper.selectById(id);
+        if (record == null) {
+            throw new IllegalArgumentException("购买记录不存在：" + id);
+        }
+        record.setQuantity(dto.getQuantity());
+        record.setRemark(dto.getRemark());
+
+        // 注数变更后重新计算奖金
+        if (record.getPrizeLevel() != null) {
+            PrizeLevel level = PrizeLevel.ofLevel(record.getPrizeLevel());
+            record.setPrizeMoney(BigDecimal.valueOf(level.getFixedPrize())
+                    .multiply(BigDecimal.valueOf(dto.getQuantity())));
+        } else {
+            record.setPrizeMoney(null);
+        }
+        purchaseRecordMapper.updateById(record);
+        log.info("编辑购买记录，id：{}，注数：{}，备注：{}", id, dto.getQuantity(), dto.getRemark());
+    }
+
+    /**
      * 删除购买记录
      */
     public void delete(Long id) {
         purchaseRecordMapper.deleteById(id);
         log.info("删除购买记录，id：{}", id);
+    }
+
+    /**
+     * 按期号删除该期所有购买记录，返回删除条数
+     */
+    public int deleteByIssue(String issue) {
+        int count = purchaseRecordMapper.delete(
+                new LambdaQueryWrapper<PurchaseRecord>().eq(PurchaseRecord::getIssue, issue));
+        log.info("按期号删除购买记录，期号：{}，共删除 {} 条", issue, count);
+        return count;
+    }
+
+    /**
+     * 按 ID 列表批量删除购买记录，返回删除条数
+     */
+    public int deleteByIds(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) return 0;
+        int count = purchaseRecordMapper.deleteBatchIds(ids);
+        log.info("批量删除购买记录，共删除 {} 条", count);
+        return count;
+    }
+
+    /**
+     * 模糊查询期号，倒序返回最多10个
+     */
+    public List<String> suggestIssues(String keyword) {
+        return purchaseRecordMapper.selectIssuesByKeyword(keyword == null ? "" : keyword, 10);
     }
 
     /**

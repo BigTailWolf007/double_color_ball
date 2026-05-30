@@ -3,6 +3,7 @@ package com.dcb.purchase.controller;
 import com.dcb.common.result.PageResult;
 import com.dcb.common.result.Result;
 import com.dcb.purchase.dto.PurchaseAddDTO;
+import com.dcb.purchase.dto.PurchaseUpdateDTO;
 import com.dcb.purchase.service.PurchaseService;
 import com.dcb.purchase.vo.PurchaseRecordVO;
 import lombok.RequiredArgsConstructor;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import javax.validation.Valid;
 import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
+import javax.validation.constraints.NotEmpty;
 import java.util.List;
 import java.util.Map;
 
@@ -45,6 +47,13 @@ public class PurchaseController {
         return Result.success(purchaseService.recalcByIds(ids));
     }
 
+    /** 编辑购买记录（仅允许修改注数和备注），期号不可修改 */
+    @PutMapping("/{id}")
+    public Result<Void> update(@PathVariable Long id, @RequestBody @Valid PurchaseUpdateDTO dto) {
+        purchaseService.update(id, dto);
+        return Result.success();
+    }
+
     /** 删除购买记录 */
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {
@@ -66,5 +75,23 @@ public class PurchaseController {
     @GetMapping("/summary")
     public Result<Map<String, Object>> summary() {
         return Result.success(purchaseService.summary());
+    }
+
+    /** 按期号删除该期所有购买记录，返回删除条数 */
+    @DeleteMapping("/issue/{issue}")
+    public Result<Integer> deleteByIssue(@PathVariable String issue) {
+        return Result.success(purchaseService.deleteByIssue(issue));
+    }
+
+    /** 按 ID 列表批量删除购买记录，返回删除条数 */
+    @PostMapping("/batch-delete")
+    public Result<Integer> deleteByIds(@RequestBody @NotEmpty(message = "ID列表不能为空") List<Long> ids) {
+        return Result.success(purchaseService.deleteByIds(ids));
+    }
+
+    /** 模糊查询期号，倒序返回最多10个，用于输入框下拉提示 */
+    @GetMapping("/issue-suggest")
+    public Result<List<String>> issueSuggest(@RequestParam(defaultValue = "") String q) {
+        return Result.success(purchaseService.suggestIssues(q));
     }
 }

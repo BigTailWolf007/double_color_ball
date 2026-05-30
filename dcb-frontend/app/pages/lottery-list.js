@@ -52,6 +52,8 @@ const LotteryList = (() => {
       fetchList()
     })
 
+    renderIssueInput('q-issue', '/api/lottery/issue-suggest', val => { state.issue = val })
+
     fetchList()
   }
 

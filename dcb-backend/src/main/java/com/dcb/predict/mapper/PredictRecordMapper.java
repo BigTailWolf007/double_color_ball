@@ -41,4 +41,19 @@ public interface PredictRecordMapper extends BaseMapper<PredictRecord> {
      * 批量查询多个期号已存在的所有 ballKey，返回 {issue, ballKey} 列表
      */
     List<BallKeyRowDTO> selectBallKeysByIssues(@Param("issues") List<String> issues);
+
+    /**
+     * 查询所有不重复的期号，按期号降序
+     */
+    List<String> selectDistinctIssues();
+
+    /**
+     * 查询指定期号列表的所有预测号码
+     */
+    List<PredictRecord> selectByIssues(@Param("issues") List<String> issues);
+
+    /**
+     * 模糊查询期号，倒序返回最多 limit 个
+     */
+    List<String> selectIssuesByKeyword(@Param("keyword") String keyword, @Param("limit") int limit);
 }

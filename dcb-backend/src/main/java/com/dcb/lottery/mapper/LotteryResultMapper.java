@@ -33,4 +33,9 @@ public interface LotteryResultMapper extends BaseMapper<LotteryResult> {
      * 按期号列表批量查询开奖号码
      */
     List<LotteryResult> selectByIssues(@Param("issues") List<String> issues);
+
+    /**
+     * 模糊查询期号，倒序返回最多 limit 个
+     */
+    List<String> selectIssuesByKeyword(@Param("keyword") String keyword, @Param("limit") int limit);
 }

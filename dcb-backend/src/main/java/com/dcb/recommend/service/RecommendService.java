@@ -1,7 +1,10 @@
 package com.dcb.recommend.service;
 
 import com.dcb.common.exception.BizException;
+import com.dcb.predict.dto.PredictSaveDTO;
+import com.dcb.predict.service.PredictService;
 import com.dcb.recommend.dto.RecommendQueryDTO;
+import com.dcb.recommend.dto.RecommendSavePredictDTO;
 import com.dcb.recommend.vo.RecommendCacheVO;
 import com.dcb.recommend.vo.RecommendResultVO;
 import com.dcb.recommend.vo.RecommendResultVO.NumberGroupVO;
@@ -31,6 +34,12 @@ public class RecommendService {
     @Autowired
     private RecommendService self;
 
+    private final PredictService predictService;
+
+    public RecommendService(PredictService predictService) {
+        this.predictService = predictService;
+    }
+
     public RecommendResultVO generate(RecommendQueryDTO dto) {
         validateParams(dto);
 
@@ -51,6 +60,37 @@ public class RecommendService {
                 .truncated(cached.isTruncated())
                 .list(pageList)
                 .build();
+    }
+
+    /**
+     * 从缓存取全量数据，批量保存为预测记录
+     */
+    public int savePredict(RecommendSavePredictDTO dto) {
+        RecommendQueryDTO queryDTO = RecommendQueryDTO.builder()
+                .sumMin(dto.getSumMin())
+                .sumMax(dto.getSumMax())
+                .zoneRatio(dto.getZoneRatio())
+                .oddEvenRatio(dto.getOddEvenRatio())
+                .excludeRed(dto.getExcludeRed())
+                .includeBlue(dto.getIncludeBlue())
+                .build();
+        validateParams(queryDTO);
+
+        String cacheKey = buildCacheKey(queryDTO);
+        RecommendCacheVO cached = self.computeAllGroups(cacheKey, queryDTO);
+
+        List<PredictSaveDTO> payload = new ArrayList<>(cached.getGroups().size());
+        for (NumberGroupVO g : cached.getGroups()) {
+            payload.add(PredictSaveDTO.builder()
+                    .issue(dto.getIssue())
+                    .red1(g.getRed().get(0)).red2(g.getRed().get(1)).red3(g.getRed().get(2))
+                    .red4(g.getRed().get(3)).red5(g.getRed().get(4)).red6(g.getRed().get(5))
+                    .blue(g.getBlue())
+                    .build());
+        }
+
+        predictService.save(payload);
+        return payload.size();
     }
 
     /**

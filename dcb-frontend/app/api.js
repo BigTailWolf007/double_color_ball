@@ -35,8 +35,10 @@ async function request(method, path, options = {}) {
 }
 
 const api = {
+  baseUrl: BASE_URL,
   get: (path, params) => request('GET', path, { params }),
   post: (path, body) => request('POST', path, { body }),
+  put: (path, body) => request('PUT', path, { body }),
   postForm: (path, formData) => request('POST', path, { body: formData }),
   delete: (path) => request('DELETE', path),
 }

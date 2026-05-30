@@ -144,8 +144,11 @@ body {
 .btn-default { background: #fff; color: #606266; border-color: #dcdfe6; }
 .btn-default:hover:not(:disabled) { background: #f5f7fa; }
 .btn-link { background: transparent; border-color: transparent; padding: 2px 4px; }
+.btn-link:hover:not(:disabled) { background: transparent; }
 .btn-link.btn-danger { color: #f56c6c; }
 .btn-link.btn-danger:hover { color: #f78989; }
+.btn-link.btn-primary { color: #409eff; }
+.btn-link.btn-primary:hover { color: #66b1ff; }
 .btn-sm { padding: 4px 10px; font-size: 12px; }
 
 /* ===== 表格 ===== */

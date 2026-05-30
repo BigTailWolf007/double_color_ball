@@ -37,4 +37,9 @@ public interface PurchaseRecordMapper extends BaseMapper<PurchaseRecord> {
      * 查询指定期号已存在的所有 ballKey
      */
     List<String> selectBallKeysByIssue(@Param("issue") String issue);
+
+    /**
+     * 模糊查询期号，倒序返回最多 limit 个
+     */
+    List<String> selectIssuesByKeyword(@Param("keyword") String keyword, @Param("limit") int limit);
 }

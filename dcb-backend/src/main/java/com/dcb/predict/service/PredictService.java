@@ -12,11 +12,16 @@ import com.dcb.predict.dto.PredictSaveDTO;
 import com.dcb.predict.entity.PredictRecord;
 import com.dcb.predict.mapper.PredictRecordMapper;
 import com.dcb.predict.vo.PredictRecordVO;
+import com.dcb.purchase.dto.PurchaseAddDTO;
+import com.dcb.purchase.service.PurchaseService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -36,6 +41,7 @@ public class PredictService {
 
     private final PredictRecordMapper predictRecordMapper;
     private final LotteryService lotteryService;
+    private final PurchaseService purchaseService;
 
     /**
      * 保存预测号码，若该期已有开奖号码则立即计算命中结果，跳过同期重复号码
@@ -157,6 +163,81 @@ public class PredictService {
                         .eq(PredictRecord::getIssue, issue));
         log.info("按期号删除预测记录，期号：{}，共删除 {} 条", issue, count);
         return count;
+    }
+
+    /**
+     * 查询所有不重复的期号列表
+     */
+    public List<String> listIssues() {
+        return predictRecordMapper.selectDistinctIssues();
+    }
+
+    /**
+     * 模糊查询期号，倒序返回最多10个
+     */
+    public List<String> suggestIssues(String keyword) {
+        return predictRecordMapper.selectIssuesByKeyword(keyword == null ? "" : keyword, 10);
+    }
+
+    /**
+     * 按期号列表将预测号码同步到购买记录，返回同步条数
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public int syncToPurchaseByIssues(List<String> issues) {
+        if (issues == null || issues.isEmpty()) return 0;
+        List<PredictRecord> records = predictRecordMapper.selectByIssues(issues);
+        return doSync(records);
+    }
+
+    /**
+     * 按 ID 列表将预测号码同步到购买记录，返回同步条数
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public int syncToPurchaseByIds(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) return 0;
+        List<PredictRecord> records = predictRecordMapper.selectBatchIds(ids);
+        return doSync(records);
+    }
+
+    private int doSync(List<PredictRecord> records) {
+        if (records.isEmpty()) return 0;
+        List<PurchaseAddDTO> dtoList = new ArrayList<>(records.size());
+        for (PredictRecord r : records) {
+            dtoList.add(PurchaseAddDTO.builder()
+                    .issue(r.getIssue())
+                    .red1(r.getRed1()).red2(r.getRed2()).red3(r.getRed3())
+                    .red4(r.getRed4()).red5(r.getRed5()).red6(r.getRed6())
+                    .blue(r.getBlue())
+                    .quantity(1)
+                    .build());
+        }
+        purchaseService.add(dtoList);
+        log.info("预测号码同步到购买记录，共 {} 条", dtoList.size());
+        return dtoList.size();
+    }
+
+    /**
+     * 流式写出指定期号的预测号码为 TXT 格式
+     * 不关闭 outputStream，由调用方（Servlet 容器）负责关闭
+     */
+    public void exportTxt(List<String> issues, OutputStream outputStream) throws IOException {
+        List<PredictRecord> records = predictRecordMapper.selectByIssues(issues);
+        PrintWriter writer = new PrintWriter(
+                new java.io.OutputStreamWriter(outputStream, java.nio.charset.StandardCharsets.UTF_8), true);
+        String currentIssue = null;
+        for (PredictRecord r : records) {
+            if (!r.getIssue().equals(currentIssue)) {
+                if (currentIssue != null) writer.println();
+                writer.println("=== 期号：" + r.getIssue() + " ===");
+                currentIssue = r.getIssue();
+            }
+            String reds = String.format("%02d %02d %02d %02d %02d %02d",
+                    r.getRed1(), r.getRed2(), r.getRed3(),
+                    r.getRed4(), r.getRed5(), r.getRed6());
+            writer.println(reds + " | " + String.format("%02d", r.getBlue()));
+        }
+        writer.flush();
+        log.info("导出预测号码，期号：{}，共 {} 条", issues, records.size());
     }
 
     private void calcAndFill(PredictRecord record, LotteryResult lottery) {

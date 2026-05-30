@@ -178,3 +178,85 @@ function renderBallPicker(containerId, options, selected, max, tagClass, onChang
     })
   })
 }
+
+// ===== 期号输入框（带下拉提示） =====
+// suggestUrl: 如 '/api/lottery/issue-suggest'
+// onChange: 用户选中或输入完成时回调，传入当前值
+function renderIssueInput(inputId, suggestUrl, onChange) {
+  const input = document.getElementById(inputId)
+  if (!input) return
+
+  const wrapper = input.parentElement
+  if (!wrapper.style.position) wrapper.style.position = 'relative'
+  const dropdown = document.createElement('div')
+  dropdown.style.cssText = 'display:none;position:absolute;top:100%;left:0;z-index:999;background:#fff;border:1px solid #dcdfe6;border-radius:4px;box-shadow:0 2px 8px rgba(0,0,0,.12);min-width:160px;max-height:240px;overflow-y:auto;'
+  wrapper.appendChild(dropdown)
+
+  let debounceTimer = null
+
+  function escapeHtml(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  }
+
+  function closeDropdown() { dropdown.style.display = 'none' }
+
+  function showSuggestions(items) {
+    if (!items.length) { closeDropdown(); return }
+    dropdown.innerHTML = items.map(issue =>
+      `<div style="padding:8px 12px;cursor:pointer;font-size:13px;color:#303133;" data-v="${escapeHtml(issue)}">${escapeHtml(issue)}</div>`
+    ).join('')
+    dropdown.style.display = 'block'
+    dropdown.querySelectorAll('[data-v]').forEach(item => {
+      item.addEventListener('mouseenter', () => item.style.background = '#f5f7fa')
+      item.addEventListener('mouseleave', () => item.style.background = '')
+      item.addEventListener('mousedown', e => {
+        e.preventDefault()
+        input.value = item.dataset.v
+        closeDropdown()
+        if (onChange) onChange(item.dataset.v)
+      })
+    })
+  }
+
+  async function fetchSuggestions(q) {
+    try {
+      const res = await api.get(suggestUrl, { q })
+      showSuggestions(res.data || [])
+    } catch (e) { closeDropdown() }
+  }
+
+  function debounceFetch() {
+    clearTimeout(debounceTimer)
+    debounceTimer = setTimeout(() => fetchSuggestions(input.value.trim()), 200)
+  }
+
+  input.addEventListener('input', debounceFetch)
+  input.addEventListener('focus', debounceFetch)
+  input.addEventListener('blur', () => {
+    setTimeout(closeDropdown, 150)
+    if (onChange) onChange(input.value.trim())
+  })
+  input.addEventListener('keydown', e => {
+    const items = [...dropdown.querySelectorAll('[data-v]')]
+    if (!items.length) return
+    const idx = items.findIndex(i => i.classList.contains('active'))
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      const next = idx < items.length - 1 ? idx + 1 : 0
+      items.forEach(i => { i.classList.remove('active'); i.style.background = '' })
+      items[next].classList.add('active'); items[next].style.background = '#f5f7fa'
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      const prev = idx > 0 ? idx - 1 : items.length - 1
+      items.forEach(i => { i.classList.remove('active'); i.style.background = '' })
+      items[prev].classList.add('active'); items[prev].style.background = '#f5f7fa'
+    } else if (e.key === 'Enter' && idx >= 0) {
+      e.preventDefault()
+      input.value = items[idx].dataset.v
+      closeDropdown()
+      if (onChange) onChange(items[idx].dataset.v)
+    } else if (e.key === 'Escape') {
+      closeDropdown()
+    }
+  })
+}

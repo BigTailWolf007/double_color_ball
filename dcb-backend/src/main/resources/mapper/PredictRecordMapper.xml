@@ -43,6 +43,28 @@
             #{i}
         </foreach>
     </select>
+
+    <select id="selectDistinctIssues" resultType="string">
+        SELECT DISTINCT fissue FROM t_predict_record ORDER BY fissue DESC
+    </select>
+
+    <select id="selectByIssues" resultMap="BaseResultMap">
+        SELECT fid, fissue, fred1, fred2, fred3, fred4, fred5, fred6, fblue, fball_key,
+               fhit_red, fhit_blue, fprize_level, fcreated_at
+        FROM t_predict_record
+        WHERE fissue IN
+        <foreach collection="issues" item="i" open="(" separator="," close=")">
+            #{i}
+        </foreach>
+        ORDER BY fissue DESC, fcreated_at DESC
+    </select>
+
+    <select id="selectIssuesByKeyword" resultType="string">
+        SELECT DISTINCT fissue FROM t_predict_record
+        WHERE fissue LIKE CONCAT('%', #{keyword}, '%')
+        ORDER BY fissue DESC
+        LIMIT #{limit}
+    </select>
     <insert id="batchInsert" parameterType="java.util.List" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO t_predict_record
             (fissue, fred1, fred2, fred3, fred4, fred5, fred6, fblue, fball_key,

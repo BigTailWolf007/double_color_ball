@@ -52,5 +52,11 @@
             #{i}
         </foreach>
     </select>
+    <select id="selectIssuesByKeyword" resultType="string">
+        SELECT DISTINCT fissue FROM t_lottery_result
+        WHERE fissue LIKE CONCAT('%', #{keyword}, '%')
+        ORDER BY fissue DESC
+        LIMIT #{limit}
+    </select>
 
 </mapper>

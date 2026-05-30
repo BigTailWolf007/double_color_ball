@@ -80,7 +80,12 @@ echo [2/3] 后端服务就绪
 :: -------- 启动前端 --------
 :START_FRONTEND
 echo [3/3] 正在启动前端服务（端口 %FRONTEND_PORT%）...
-start "前端服务 :%FRONTEND_PORT%" cmd /k "npx serve -p %FRONTEND_PORT% "%FRONTEND_DIR%" && pause"
+where serve >nul 2>&1
+if errorlevel 1 (
+    echo [3/3] 正在全局安装 serve...
+    call npm install -g serve -q
+)
+start "前端服务 :%FRONTEND_PORT%" cmd /k "serve -p %FRONTEND_PORT% "%FRONTEND_DIR%" && pause"
 echo [3/3] 前端服务已启动
 
 :: -------- 等待前端端口就绪后打开浏览器 --------

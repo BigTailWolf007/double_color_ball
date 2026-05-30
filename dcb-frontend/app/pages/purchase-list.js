@@ -15,7 +15,11 @@ const PurchaseList = (() => {
       <div class="card">
         <div class="card-header">
           <span>购买记录列表</span>
-          <button class="btn btn-warning" id="btn-recalc" disabled>重新计算盈亏</button>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-danger" id="btn-delete-issue">按期号删除</button>
+            <button class="btn btn-danger" id="btn-batch-delete" disabled>批量删除</button>
+            <button class="btn btn-warning" id="btn-recalc" disabled>重新计算盈亏</button>
+          </div>
         </div>
         <div class="card-body">
           <div class="filter-bar">
@@ -64,6 +68,8 @@ const PurchaseList = (() => {
       fetchList()
     })
     document.getElementById('btn-recalc').addEventListener('click', handleRecalc)
+    document.getElementById('btn-delete-issue').addEventListener('click', handleDeleteByIssue)
+    document.getElementById('btn-batch-delete').addEventListener('click', handleBatchDelete)
     document.getElementById('check-all').addEventListener('change', () => {
       const tbody = document.getElementById('table-body')
       const checkAll = document.getElementById('check-all')
@@ -73,16 +79,20 @@ const PurchaseList = (() => {
         const id = Number(cb.dataset.id)
         checkAll.checked ? selectedIds.add(id) : selectedIds.delete(id)
       })
-      updateRecalcBtn()
+      updateActionBtns()
     })
+
+    renderIssueInput('q-issue', '/api/purchase/issue-suggest', val => { state.issue = val })
 
     fetchList()
     fetchSummary()
   }
 
-  function updateRecalcBtn() {
-    const btn = document.getElementById('btn-recalc')
-    if (btn) btn.disabled = selectedIds.size === 0
+  function updateActionBtns() {
+    const recalcBtn = document.getElementById('btn-recalc')
+    const deleteBtn = document.getElementById('btn-batch-delete')
+    if (recalcBtn) recalcBtn.disabled = selectedIds.size === 0
+    if (deleteBtn) deleteBtn.disabled = selectedIds.size === 0
   }
 
   async function fetchList() {
@@ -112,22 +122,24 @@ const PurchaseList = (() => {
             <td class="text-center">${renderPrizeLevel(row.prizeLevel, row.prizeLevelDesc)}</td>
             <td class="text-right" style="color:${prizeColor};">¥${row.prizeMoney ?? '-'}</td>
             <td>${row.remark || ''}</td>
-            <td><button class="btn btn-link btn-danger btn-sm" data-id="${row.id}">删除</button></td>
+            <td><button class="btn btn-link btn-primary btn-sm btn-edit" data-id="${row.id}" data-quantity="${row.quantity}" data-remark="${(row.remark || '').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}">编辑</button><button class="btn btn-link btn-danger btn-sm btn-delete" data-id="${row.id}">删除</button></td>
           </tr>`
         }).join('')
 
-        // 行复选框事件
         tbody.querySelectorAll('.row-check').forEach(cb => {
           cb.addEventListener('change', () => {
             const id = Number(cb.dataset.id)
             cb.checked ? selectedIds.add(id) : selectedIds.delete(id)
             syncCheckAll()
-            updateRecalcBtn()
+            updateActionBtns()
           })
         })
 
-        // 删除按钮事件
-        tbody.querySelectorAll('[data-id]:not(.row-check)').forEach(btn => {
+        tbody.querySelectorAll('.btn-edit').forEach(btn => {
+          btn.addEventListener('click', () => handleEdit(btn.dataset.id, btn.dataset.quantity, btn.dataset.remark))
+        })
+
+        tbody.querySelectorAll('.btn-delete').forEach(btn => {
           btn.addEventListener('click', () => handleDelete(btn.dataset.id))
         })
 
@@ -169,12 +181,65 @@ const PurchaseList = (() => {
     } catch (e) {}
   }
 
+  function handleEdit(id, quantity, remark) {
+    const safeRemark = (remark || '').replace(/"/g, '&quot;')
+    openModal('编辑购买记录', `
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <label style="width:48px;text-align:right;flex-shrink:0;">注数</label>
+          <input class="form-input" id="edit-quantity" type="number" min="1" max="9999" value="${quantity}" style="width:100px;" />
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <label style="width:48px;text-align:right;flex-shrink:0;">备注</label>
+          <input class="form-input" id="edit-remark" type="text" value="${safeRemark}" placeholder="选填" maxlength="500" style="flex:1;" />
+        </div>
+      </div>`,
+      `<button class="btn btn-default" id="edit-cancel">取消</button>
+       <button class="btn btn-primary" id="edit-ok">保存</button>`)
+
+    document.getElementById('edit-cancel').addEventListener('click', closeModal)
+    document.getElementById('edit-ok').addEventListener('click', async () => {
+      const qty = parseInt(document.getElementById('edit-quantity').value, 10)
+      if (isNaN(qty) || qty < 1 || qty > 9999) { toast('注数必须为1-9999之间的整数', 'error'); return }
+      try {
+        await api.put(`/api/purchase/${id}`, { quantity: qty, remark: document.getElementById('edit-remark').value.trim() })
+        closeModal()
+        toast('保存成功')
+        fetchList()
+        fetchSummary()
+      } catch (e) {}
+    })
+  }
+
   async function handleDelete(id) {
     try {
       await confirm('确认删除该条购买记录？')
       await api.delete(`/api/purchase/${id}`)
       selectedIds.delete(Number(id))
       toast('删除成功')
+      fetchList()
+      fetchSummary()
+    } catch (e) {}
+  }
+
+  async function handleDeleteByIssue() {
+    try {
+      const issue = await prompt('请输入要删除的期号', '如：2024001', v => !!v || '期号不能为空')
+      await confirm(`确认删除期号 ${issue} 的所有购买记录？`)
+      const res = await api.delete(`/api/purchase/issue/${issue}`)
+      toast(`已删除期号 ${issue} 的 ${res.data} 条购买记录`)
+      fetchList()
+      fetchSummary()
+    } catch (e) {}
+  }
+
+  async function handleBatchDelete() {
+    if (!selectedIds.size) return
+    try {
+      await confirm(`确认删除已勾选的 ${selectedIds.size} 条购买记录？`)
+      const res = await api.post('/api/purchase/batch-delete', [...selectedIds])
+      toast(`已删除 ${res.data} 条购买记录`)
+      selectedIds.clear()
       fetchList()
       fetchSummary()
     } catch (e) {}
