@@ -218,10 +218,10 @@ public class PurchaseService {
     }
 
     private void calcAndFill(PurchaseRecord record, LotteryResult lottery) {
-        List<Integer> buyReds = Arrays.asList(
+        List<Integer> buyReds = LotteryUtils.toRedList(
                 record.getRed1(), record.getRed2(), record.getRed3(),
                 record.getRed4(), record.getRed5(), record.getRed6());
-        List<Integer> drawReds = Arrays.asList(
+        List<Integer> drawReds = LotteryUtils.toRedList(
                 lottery.getRed1(), lottery.getRed2(), lottery.getRed3(),
                 lottery.getRed4(), lottery.getRed5(), lottery.getRed6());
 

@@ -5,6 +5,7 @@ import com.dcb.recommend.dto.RecommendQueryDTO;
 import com.dcb.recommend.dto.RecommendSavePredictDTO;
 import com.dcb.recommend.service.RecommendService;
 import com.dcb.recommend.vo.RecommendResultVO;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
@@ -14,13 +15,10 @@ import javax.validation.Valid;
  */
 @RestController
 @RequestMapping("/api/recommend")
+@RequiredArgsConstructor
 public class RecommendController {
 
     private final RecommendService recommendService;
-
-    public RecommendController(RecommendService recommendService) {
-        this.recommendService = recommendService;
-    }
 
     /** 根据过滤条件生成符合条件的号码组合 */
     @PostMapping("/generate")

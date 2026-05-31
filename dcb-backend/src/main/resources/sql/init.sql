@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS t_purchase_record (
   fprize_money DECIMAL(12,2) COMMENT '总奖金',
   fremark      VARCHAR(200) COMMENT '备注',
   fcreated_at  DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-  KEY idx_ball_key (fball_key)
+  UNIQUE KEY uk_ball_key (fball_key)
 ) COMMENT '购买记录';
 
 -- 预测号码表
@@ -60,7 +60,10 @@ CREATE TABLE IF NOT EXISTS t_predict_record (
 -- 存量数据补填 fball_key（已有数据的库执行此脚本时使用）
 -- ALTER TABLE t_lottery_result ADD COLUMN fball_key VARCHAR(60) NOT NULL DEFAULT '' COMMENT '号码复合键：期号-红1-红2-红3-红4-红5-红6-蓝', ADD UNIQUE KEY uk_ball_key (fball_key);
 -- UPDATE t_lottery_result SET fball_key = CONCAT(fissue,'-',fred1,'-',fred2,'-',fred3,'-',fred4,'-',fred5,'-',fred6,'-',fblue);
--- ALTER TABLE t_purchase_record ADD COLUMN fball_key VARCHAR(60) NOT NULL DEFAULT '' COMMENT '号码复合键：期号-红1-红2-红3-红4-红5-红6-蓝', ADD KEY idx_ball_key (fball_key);
+-- ALTER TABLE t_purchase_record ADD COLUMN fball_key VARCHAR(60) NOT NULL DEFAULT '' COMMENT '号码复合键：期号-红1-红2-红3-红4-红5-红6-蓝', ADD UNIQUE KEY uk_ball_key (fball_key);
 -- UPDATE t_purchase_record SET fball_key = CONCAT(fissue,'-',fred1,'-',fred2,'-',fred3,'-',fred4,'-',fred5,'-',fred6,'-',fblue);
 -- ALTER TABLE t_predict_record ADD COLUMN fball_key VARCHAR(60) NOT NULL DEFAULT '' COMMENT '号码复合键：期号-红1-红2-红3-红4-红5-红6-蓝', ADD UNIQUE KEY uk_ball_key (fball_key);
 -- UPDATE t_predict_record SET fball_key = CONCAT(fissue,'-',fred1,'-',fred2,'-',fred3,'-',fred4,'-',fred5,'-',fred6,'-',fblue);
+
+-- 如果购买记录表已有 idx_ball_key 普通索引，需先删除再建唯一索引：
+-- ALTER TABLE t_purchase_record DROP INDEX idx_ball_key, ADD UNIQUE KEY uk_ball_key (fball_key);

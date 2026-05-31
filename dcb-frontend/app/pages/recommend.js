@@ -157,8 +157,9 @@ const Recommend = (() => {
     const { ok, body, error } = readAndValidate()
     if (!ok) { toast(error, 'warning'); return }
 
+    // 一次性拉取全量结果（最多10000组），翻页时本地切片，避免重复请求
     body.page = 1
-    body.pageSize = state.pageSize
+    body.pageSize = 10000
 
     const btn = document.getElementById('btn-generate')
     btn.disabled = true
@@ -190,16 +191,6 @@ const Recommend = (() => {
     document.getElementById('result-list').style.display = 'block'
   }
 
-  async function fetchPage(page) {
-    const body = { ...state.lastQuery, page, pageSize: state.pageSize }
-    try {
-      const res = await api.post('/api/recommend/generate', body)
-      state.allGroups = res.data.list || []
-      state.page = page
-      renderResultPage()
-    } catch (e) {}
-  }
-
   function renderResultPage() {
     const tbody = document.getElementById('result-tbody')
     if (!tbody) return
@@ -216,9 +207,11 @@ const Recommend = (() => {
         </tr>`).join('')
     }
 
+    // 翻页只做本地切片，不发网络请求
     renderPagination('result-pagination', state.page, state.pageSize, Math.min(state.total, 10000), (p, s) => {
+      state.page = p
       state.pageSize = s
-      fetchPage(p)
+      renderResultPage()
     })
   }
 
