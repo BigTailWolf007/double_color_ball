@@ -6,12 +6,12 @@ const LotteryList = (() => {
 
   function render() {
     document.getElementById('main-content').innerHTML = `
-      <div class="card">
+      <div class="card" style="flex:1;display:flex;flex-direction:column;min-height:0;">
         <div class="card-header">
           <span>开奖号码列表</span>
           <button class="btn btn-primary" id="btn-add">手动录入</button>
         </div>
-        <div class="card-body">
+        <div class="card-body" style="flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden;">
           <div class="filter-bar">
             <label>期号</label>
             <input class="form-input" id="q-issue" placeholder="请输入期号" value="${state.issue}" style="width:160px;" />
@@ -22,14 +22,14 @@ const LotteryList = (() => {
             <button class="btn btn-primary" id="btn-search">查询</button>
             <button class="btn btn-default" id="btn-reset">重置</button>
           </div>
-          <div class="table-wrap" id="table-wrap">
+          <div class="table-scroll" style="flex:1;min-height:0;">
             <table>
               <thead>
                 <tr>
-                  <th>期号</th><th>开奖日期</th><th>红球</th><th>蓝球</th><th>录入时间</th><th>操作</th>
+                  <th style="width:100px;">期号</th><th style="width:110px;">开奖日期</th><th>号码</th><th style="width:130px;">录入时间</th><th style="width:80px;">操作</th>
                 </tr>
               </thead>
-              <tbody id="table-body"><tr><td colspan="6" class="text-center" style="color:#909399;">加载中...</td></tr></tbody>
+              <tbody id="table-body"><tr><td colspan="5" class="text-center" style="color:#909399;">加载中...</td></tr></tbody>
             </table>
           </div>
           <div class="pagination" id="pagination"></div>
@@ -71,14 +71,13 @@ const LotteryList = (() => {
       state.total = res.data.total || 0
 
       if (!list.length) {
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center" style="color:#909399;">暂无数据</td></tr>'
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center" style="color:#909399;">暂无数据</td></tr>'
       } else {
         tbody.innerHTML = list.map(row => `
           <tr>
             <td>${row.issue}</td>
             <td>${row.drawDate || '-'}</td>
-            <td>${renderReds(row.reds)}</td>
-            <td>${renderBlue(row.blue)}</td>
+            <td>${renderReds(row.reds)}${renderBlue(row.blue)}</td>
             <td>${row.createdAt || '-'}</td>
             <td><button class="btn btn-link btn-danger btn-sm" data-id="${row.id}" data-issue="${row.issue}">删除</button></td>
           </tr>`).join('')

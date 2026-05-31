@@ -11,9 +11,9 @@ const Recommend = (() => {
 
   function render() {
     document.getElementById('main-content').innerHTML = `
-      <div class="card">
+      <div class="card" style="flex:1;display:flex;flex-direction:column;min-height:0;">
         <div class="card-header"><span>号码推荐</span></div>
-        <div class="card-body">
+        <div class="card-body" style="flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden;">
 
           <!-- 条件输入区 -->
           <div class="filter-bar" style="flex-wrap:wrap;gap:12px;align-items:flex-start;">
@@ -53,8 +53,9 @@ const Recommend = (() => {
             <button class="btn btn-default" id="btn-reset-form">重置条件</button>
           </div>
 
-          <!-- 结果统计区（初始隐藏） -->
-          <div id="result-summary" style="display:none;margin-top:20px;padding:12px;background:#f5f7fa;border-radius:4px;">
+          <!-- 结果统计区+列表区（滚动） -->
+          <div id="result-section" style="flex:1;min-height:0;overflow:auto;display:none;">
+          <div id="result-summary" style="margin-top:0;padding:12px;background:#f5f7fa;border-radius:4px;">
             <span id="result-count"></span>
             <span id="result-truncated" style="color:#e6a23c;margin-left:12px;display:none;">结果超过10000组，仅展示前10000组</span>
             <div style="margin-top:10px;display:flex;align-items:center;gap:8px;">
@@ -65,7 +66,7 @@ const Recommend = (() => {
           </div>
 
           <!-- 结果列表区 -->
-          <div id="result-list" style="display:none;margin-top:16px;">
+          <div id="result-list" style="margin-top:16px;">
             <div class="table-wrap">
               <table>
                 <thead>
@@ -75,6 +76,7 @@ const Recommend = (() => {
               </table>
             </div>
             <div class="pagination" id="result-pagination"></div>
+          </div>
           </div>
 
         </div>
@@ -183,12 +185,10 @@ const Recommend = (() => {
   }
 
   function showSummary() {
-    const summary = document.getElementById('result-summary')
-    summary.style.display = 'block'
+    document.getElementById('result-section').style.display = 'block'
     document.getElementById('result-count').textContent = `共找到 ${state.total.toLocaleString()} 组号码`
     const truncEl = document.getElementById('result-truncated')
     truncEl.style.display = state.truncated ? 'inline' : 'none'
-    document.getElementById('result-list').style.display = 'block'
   }
 
   function renderResultPage() {

@@ -12,7 +12,7 @@ const PurchaseList = (() => {
   function render() {
     selectedIds = new Set()
     document.getElementById('main-content').innerHTML = `
-      <div class="card">
+      <div class="card" style="flex:1;display:flex;flex-direction:column;min-height:0;">
         <div class="card-header">
           <span>购买记录列表</span>
           <div style="display:flex;gap:8px;">
@@ -21,7 +21,7 @@ const PurchaseList = (() => {
             <button class="btn btn-warning" id="btn-recalc" disabled>重新计算盈亏</button>
           </div>
         </div>
-        <div class="card-body">
+        <div class="card-body" style="flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden;">
           <div class="filter-bar">
             <label>期号</label>
             <input class="form-input" id="q-issue" placeholder="请输入期号" value="${state.issue}" style="width:160px;" />
@@ -33,25 +33,25 @@ const PurchaseList = (() => {
             <button class="btn btn-primary" id="btn-search">查询</button>
             <button class="btn btn-default" id="btn-reset">重置</button>
           </div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th style="width:36px;"><input type="checkbox" id="check-all" title="全选/取消" /></th>
-                  <th>期号</th><th>红球</th><th>蓝球</th><th class="text-center">注数</th>
-                  <th class="text-center">中奖等级</th><th class="text-right">总奖金</th>
-                  <th>备注</th><th>操作</th>
-                </tr>
-              </thead>
-              <tbody id="table-body"><tr><td colspan="9" class="text-center" style="color:#909399;">加载中...</td></tr></tbody>
-            </table>
-          </div>
-          <div class="pagination" id="pagination"></div>
-          <div class="stat-cards" id="stat-cards">
+          <div class="stat-cards" id="stat-cards" style="margin-top:0;margin-bottom:16px;">
             <div class="stat-card"><div class="stat-label">总投入</div><div class="stat-value" id="stat-cost">-</div></div>
             <div class="stat-card"><div class="stat-label">总奖金</div><div class="stat-value" style="color:#67c23a;" id="stat-prize">-</div></div>
             <div class="stat-card"><div class="stat-label">盈亏</div><div class="stat-value" id="stat-profit">-</div></div>
           </div>
+          <div class="table-scroll" style="flex:1;min-height:0;">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width:36px;"><input type="checkbox" id="check-all" title="全选/取消" /></th>
+                  <th>期号</th><th>号码</th><th class="text-center">注数</th>
+                  <th class="text-center">中奖等级</th><th class="text-right">总奖金</th>
+                  <th>备注</th><th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="table-body"><tr><td colspan="8" class="text-center" style="color:#909399;">加载中...</td></tr></tbody>
+            </table>
+          </div>
+          <div class="pagination" id="pagination" style="margin-top:12px;"></div>
         </div>
       </div>`
 
@@ -98,7 +98,7 @@ const PurchaseList = (() => {
   async function fetchList() {
     const tbody = document.getElementById('table-body')
     if (!tbody) return
-    tbody.innerHTML = '<tr><td colspan="9" class="text-center" style="color:#909399;">加载中...</td></tr>'
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center" style="color:#909399;">加载中...</td></tr>'
     try {
       const params = { page: state.page, size: state.size }
       if (state.issue) params.issue = state.issue
@@ -108,7 +108,7 @@ const PurchaseList = (() => {
       state.total = res.data.total || 0
 
       if (!list.length) {
-        tbody.innerHTML = '<tr><td colspan="9" class="text-center" style="color:#909399;">暂无数据</td></tr>'
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center" style="color:#909399;">暂无数据</td></tr>'
       } else {
         tbody.innerHTML = list.map(row => {
           const prizeColor = row.prizeMoney > 0 ? '#67c23a' : '#909399'
@@ -116,8 +116,7 @@ const PurchaseList = (() => {
           return `<tr>
             <td style="text-align:center;"><input type="checkbox" class="row-check" data-id="${row.id}" ${checked} /></td>
             <td>${row.issue}</td>
-            <td>${renderReds(row.reds)}</td>
-            <td>${renderBlue(row.blue)}</td>
+            <td>${renderReds(row.reds)}${renderBlue(row.blue)}</td>
             <td class="text-center">${row.quantity}</td>
             <td class="text-center">${renderPrizeLevel(row.prizeLevel, row.prizeLevelDesc)}</td>
             <td class="text-right" style="color:${prizeColor};">¥${row.prizeMoney ?? '-'}</td>
@@ -150,7 +149,7 @@ const PurchaseList = (() => {
         state.page = p; state.size = s; fetchList()
       })
     } catch (e) {
-      if (tbody) tbody.innerHTML = '<tr><td colspan="9" class="text-center" style="color:#f56c6c;">加载失败</td></tr>'
+      if (tbody) tbody.innerHTML = '<tr><td colspan="8" class="text-center" style="color:#f56c6c;">加载失败</td></tr>'
     }
   }
 

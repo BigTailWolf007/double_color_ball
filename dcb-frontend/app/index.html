@@ -7,32 +7,34 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div class="layout">
-    <!-- 左侧导航 -->
-    <nav class="sidebar">
-      <div class="sidebar-title">双色球分析</div>
-      <div class="menu-group">
-        <div class="menu-group-title">开奖号码</div>
-        <a class="menu-item" href="#" data-page="lottery-list">号码列表</a>
-        <a class="menu-item" href="#" data-page="lottery-import">TXT 导入</a>
-      </div>
-      <div class="menu-group">
-        <div class="menu-group-title">购买记录</div>
-        <a class="menu-item" href="#" data-page="purchase-list">记录列表</a>
-        <a class="menu-item" href="#" data-page="purchase-add">录入号码</a>
-      </div>
-      <div class="menu-group">
-        <div class="menu-group-title">预测号码</div>
-        <a class="menu-item" href="#" data-page="predict-list">预测列表</a>
-      </div>
-      <div class="menu-group">
-        <div class="menu-group-title">规则推荐</div>
-        <a class="menu-item" href="#" data-page="recommend">规则推荐</a>
-      </div>
+  <!-- 顶部系统名称 -->
+  <header class="app-header">
+    <span class="app-title">双色球分析系统</span>
+  </header>
+
+  <!-- 数据卡片区（预留） -->
+  <section class="app-cards" id="app-cards">
+    <div class="placeholder-card">
+      <span class="placeholder-icon">📊</span>
+      <span>彩票分析数据（预留）</span>
+    </div>
+  </section>
+
+  <!-- Tab 容器 -->
+  <div class="app-tabs-container">
+    <!-- 主Tab -->
+    <nav class="main-tabs" id="main-tabs">
+      <button class="main-tab" data-main="lottery">开奖号码</button>
+      <button class="main-tab" data-main="purchase">购买记录</button>
+      <button class="main-tab" data-main="predict">预测号码</button>
+      <button class="main-tab" data-main="recommend">规则推荐</button>
     </nav>
 
-    <!-- 右侧内容区 -->
-    <main class="content" id="main-content"></main>
+    <!-- 子Tab -->
+    <nav class="sub-tabs" id="sub-tabs"></nav>
+
+    <!-- 内容区 -->
+    <main class="tab-content" id="main-content"></main>
   </div>
 
   <!-- 全局弹窗 -->
@@ -53,9 +55,7 @@
   <!-- 确认框 -->
   <div class="modal-overlay" id="confirm-overlay" style="display:none;">
     <div class="modal" style="max-width:400px;">
-      <div class="modal-header">
-        <span id="confirm-title">提示</span>
-      </div>
+      <div class="modal-header"><span id="confirm-title">提示</span></div>
       <div class="modal-body" id="confirm-body"></div>
       <div class="modal-footer">
         <button class="btn btn-default" id="confirm-cancel">取消</button>
@@ -67,9 +67,7 @@
   <!-- 输入框弹窗 -->
   <div class="modal-overlay" id="prompt-overlay" style="display:none;">
     <div class="modal" style="max-width:400px;">
-      <div class="modal-header">
-        <span id="prompt-title"></span>
-      </div>
+      <div class="modal-header"><span id="prompt-title"></span></div>
       <div class="modal-body">
         <input class="form-input" id="prompt-input" type="text" />
         <div class="form-error" id="prompt-error" style="display:none;"></div>

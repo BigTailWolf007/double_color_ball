@@ -5,55 +5,148 @@ body {
   font-size: 14px;
   color: #303133;
   background: #f5f7fa;
-}
-
-/* ===== 布局 ===== */
-.layout {
-  display: flex;
   height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
-.sidebar {
-  width: 200px;
-  background: #304156;
-  color: #bfcbd9;
-  flex-shrink: 0;
-  overflow-y: auto;
-}
-
-.sidebar-title {
-  padding: 20px 16px;
-  font-size: 16px;
-  font-weight: bold;
+/* ===== 顶部标题栏 ===== */
+.app-header {
+  background: linear-gradient(135deg, #409eff 0%, #337ecc 100%);
   color: #fff;
-  border-bottom: 1px solid #3d5166;
+  padding: 0 24px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(64,158,255,.25);
 }
 
-.menu-group { padding: 8px 0; }
-
-.menu-group-title {
-  padding: 8px 16px 4px;
-  font-size: 12px;
-  color: #7a8ba0;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+.app-title {
+  font-size: 22px;
+  font-weight: bold;
+  letter-spacing: 3px;
 }
 
-.menu-item {
-  display: block;
-  padding: 10px 16px 10px 24px;
-  color: #bfcbd9;
-  text-decoration: none;
-  transition: background 0.2s, color 0.2s;
+/* ===== 数据卡片区（预留） ===== */
+.app-cards {
+  padding: 16px 24px 0;
+  flex-shrink: 0;
 }
 
-.menu-item:hover { background: #3d5166; color: #fff; }
-.menu-item.active { background: #409eff; color: #fff; }
+.placeholder-card {
+  background: #fff;
+  border: 1px dashed #dcdfe6;
+  border-radius: 6px;
+  padding: 24px;
+  text-align: center;
+  color: #c0c4cc;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
 
-.content {
+.placeholder-icon { font-size: 24px; }
+
+/* ===== Tab 容器 ===== */
+.app-tabs-container {
   flex: 1;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  margin: 12px 24px 24px;
+  background: #fff;
+  border-radius: 6px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.08);
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* ===== 主Tab ===== */
+.main-tabs {
+  display: flex;
+  border-bottom: 1px solid #e4e7ed;
+  background: #fafafa;
+  flex-shrink: 0;
+  padding: 0 4px;
+}
+
+.main-tab {
+  flex: 1;
+  padding: 12px 24px;
+  border: none;
+  background: none;
+  font-size: 14px;
+  font-weight: 500;
+  color: #606266;
+  cursor: pointer;
+  text-align: center;
+  position: relative;
+  transition: color 0.2s;
+}
+
+.main-tab:hover { color: #409eff; }
+
+.main-tab.active {
+  color: #409eff;
+}
+
+.main-tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #409eff;
+}
+
+/* ===== 子Tab ===== */
+.sub-tabs {
+  display: flex;
+  border-bottom: 1px solid #ebeef5;
+  flex-shrink: 0;
+  padding: 0 8px;
+}
+
+.sub-tab {
+  padding: 8px 18px;
+  border: none;
+  background: none;
+  font-size: 13px;
+  color: #909399;
+  cursor: pointer;
+  position: relative;
+  transition: color 0.2s;
+}
+
+.sub-tab:hover { color: #303133; }
+
+.sub-tab.active {
+  color: #409eff;
+  font-weight: 500;
+}
+
+.sub-tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 8px;
+  right: 8px;
+  height: 2px;
+  background: #409eff;
+}
+
+/* ===== 内容区 ===== */
+.tab-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
   padding: 20px;
+  min-height: 0;
 }
 
 /* ===== 卡片 ===== */
@@ -152,7 +245,11 @@ body {
 .btn-sm { padding: 4px 10px; font-size: 12px; }
 
 /* ===== 表格 ===== */
-.table-wrap { overflow-x: auto; }
+.table-wrap { }
+
+.table-scroll {
+  overflow: auto;
+}
 
 table {
   width: 100%;
@@ -451,7 +548,6 @@ table tr:hover td { background: #f0f7ff; }
 
 /* ===== 响应式 ===== */
 @media (max-width: 768px) {
-  .sidebar { width: 160px; }
   .stat-cards { grid-template-columns: 1fr; }
   .import-result-grid { grid-template-columns: 1fr; }
 }
