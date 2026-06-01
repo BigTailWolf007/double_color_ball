@@ -2,10 +2,13 @@ package com.dcb.lottery.controller;
 
 import com.dcb.common.result.PageResult;
 import com.dcb.common.result.Result;
+import com.dcb.common.service.AsyncCalcService;
 import com.dcb.lottery.dto.LotteryAddDTO;
+import com.dcb.lottery.dto.LotterySyncDTO;
 import com.dcb.lottery.service.LotteryService;
 import com.dcb.lottery.vo.LotteryResultVO;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -20,6 +23,7 @@ import java.util.Map;
 /**
  * 开奖号码接口
  */
+@Slf4j
 @Validated
 @RestController
 @RequestMapping("/api/lottery")
@@ -27,6 +31,7 @@ import java.util.Map;
 public class LotteryController {
 
     private final LotteryService lotteryService;
+    private final AsyncCalcService asyncCalcService;
 
     /** TXT 文件批量导入开奖号码 */
     @PostMapping("/import")
@@ -39,6 +44,19 @@ public class LotteryController {
     public Result<Void> add(@Validated @RequestBody LotteryAddDTO dto) {
         lotteryService.add(dto);
         return Result.success();
+    }
+
+    /** 彩票接口同步 */
+    @PostMapping("/sync")
+    public Result<Map<String, Object>> sync(@Validated @RequestBody LotterySyncDTO dto) {
+        Map<String, Object> result = lotteryService.sync(dto);
+        // 同步成功后触发异步多线程计算
+        String issue = dto.getIssue();
+        asyncCalcService.asyncCalcPurchase(issue);
+        asyncCalcService.asyncCalcPredict(issue);
+        result.put("calcMode", "async");
+        log.info("同步完成，期号：{}，已提交异步计算任务", issue);
+        return Result.success(result);
     }
 
     /** 删除开奖号码 */
@@ -63,5 +81,11 @@ public class LotteryController {
     @GetMapping("/issue-suggest")
     public Result<List<String>> issueSuggest(@RequestParam(defaultValue = "") String q) {
         return Result.success(lotteryService.suggestIssues(q));
+    }
+
+    /** 冷热号分析 */
+    @GetMapping("/analysis")
+    public Result<Map<String, Object>> analysis() {
+        return Result.success(lotteryService.analysis());
     }
 }

@@ -30,6 +30,12 @@ public class PurchaseRecordVO {
     /** 蓝球 */
     private Integer blue;
 
+    /** 开奖红球（用于前端命中高亮） */
+    private List<Integer> drawReds;
+
+    /** 开奖蓝球（用于前端命中高亮） */
+    private Integer drawBlue;
+
     /** 注数 */
     private Integer quantity;
 

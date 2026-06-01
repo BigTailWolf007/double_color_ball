@@ -33,6 +33,18 @@ public class LotteryResultVO {
     /** 蓝球 */
     private Integer blue;
 
+    /** 奖品分配可读文本 */
+    private String prizeText;
+
+    /** 最后领奖日期 */
+    private LocalDate deadline;
+
+    /** 本期销售金额（元） */
+    private String saleAmount;
+
+    /** 奖池总金额（元） */
+    private String poolAmount;
+
     /** 创建时间 */
     private LocalDateTime createdAt;
 }

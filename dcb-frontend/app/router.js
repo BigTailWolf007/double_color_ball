@@ -1,5 +1,6 @@
 // ===== 页面模块注册 =====
 const PAGES = {
+  'calc-error-log': () => CalcErrorLogList.render(),
   'lottery-list':   () => LotteryList.render(),
   'lottery-import': () => LotteryImport.render(),
   'purchase-list':  () => PurchaseList.render(),
@@ -15,6 +16,7 @@ const TAB_CONFIG = {
     subs: [
       { key: 'lottery-list',   label: '号码列表' },
       { key: 'lottery-import', label: 'TXT导入' },
+      { key: 'calc-error-log', label: '错误日志' },
     ]
   },
   purchase: {

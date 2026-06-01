@@ -12,7 +12,7 @@ const PredictList = (() => {
             <button class="btn btn-success" id="btn-export">导出 TXT</button>
             <button class="btn btn-primary" id="btn-sync-issue">按期号同步购买</button>
             <button class="btn btn-primary" id="btn-sync-selected" disabled>同步勾选到购买</button>
-            <button class="btn btn-warning" id="btn-calc">手动补算</button>
+            <button class="btn btn-warning" id="btn-calc">重新计算</button>
             <button class="btn btn-danger" id="btn-clear">按期号清除</button>
           </div>
         </div>
@@ -107,7 +107,7 @@ const PredictList = (() => {
           return `<tr>
             <td style="text-align:center;"><input type="checkbox" class="row-check" data-id="${row.id}" ${checked} /></td>
             <td>${row.issue}</td>
-            <td>${renderReds(row.reds)}${renderBlue(row.blue)}</td>
+            <td>${renderBalls(row.reds, row.blue, row.drawReds, row.drawBlue)}</td>
             <td class="text-center">${hitRedHtml}</td>
             <td class="text-center">${hitBlueHtml}</td>
             <td class="text-center">${renderPrizeLevel(row.prizeLevel, row.prizeLevelDesc)}</td>
@@ -326,10 +326,11 @@ const PredictList = (() => {
 
   async function handleCalc() {
     try {
-      const issue = await prompt('请输入要补算的期号', '如：2024001', v => !!v || '期号不能为空')
-      const res = await api.post(`/api/predict/calc/${issue}`)
-      toast(`期号 ${issue} 补算完成，共更新 ${res.data} 条记录`)
-      fetchList()
+      const issue = await prompt('请输入要重新计算的期号', '如：2024001', v => !!v || '期号不能为空')
+      await api.post(`/api/predict/calc/${issue}`)
+      toast(`期号 ${issue} 已提交后台异步重新计算，稍后刷新查看结果`)
+      // 延迟刷新，等异步计算完成
+      setTimeout(() => fetchList(), 3000)
     } catch (e) {}
   }
 

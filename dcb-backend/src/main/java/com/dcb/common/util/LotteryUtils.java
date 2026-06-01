@@ -71,6 +71,7 @@ public class LotteryUtils {
         if (hitRed == 5 || (hitRed == 4 && hitBlue)) return PrizeLevel.FOURTH;
         if (hitRed == 4 || (hitRed == 3 && hitBlue)) return PrizeLevel.FIFTH;
         if (hitBlue)                return PrizeLevel.SIXTH;
+        if (hitRed == 3)            return PrizeLevel.FORTUNE;
         return PrizeLevel.NO_PRIZE;
     }
 

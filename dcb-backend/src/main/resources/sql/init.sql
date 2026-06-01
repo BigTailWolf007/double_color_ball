@@ -13,8 +13,13 @@ CREATE TABLE IF NOT EXISTS t_lottery_result (
   fred5       TINYINT NOT NULL COMMENT '红球5',
   fred6       TINYINT NOT NULL COMMENT '红球6',
   fblue       TINYINT NOT NULL COMMENT '蓝球',
-  fball_key   VARCHAR(60) NOT NULL COMMENT '号码复合键：期号-红1-红2-红3-红4-红5-红6-蓝',
-  fcreated_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  fball_key    VARCHAR(60) NOT NULL COMMENT '号码复合键：期号-红1-红2-红3-红4-红5-红6-蓝',
+  fprize_json  TEXT COMMENT '奖品分配JSON（原始数据，供后台解析）',
+  fprize_text  TEXT COMMENT '奖品分配可读文本（如：一等奖8注6,130,798元；二等奖135注268,041元；...）',
+  fdeadline    DATE COMMENT '最后领奖日期',
+  fsale_amount DECIMAL(16,2) COMMENT '本期销售金额（元）',
+  fpool_amount DECIMAL(16,2) COMMENT '奖池总金额（元）',
+  fcreated_at  DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   UNIQUE KEY uk_ball_key (fball_key)
 ) COMMENT '开奖号码';
 
@@ -57,6 +62,19 @@ CREATE TABLE IF NOT EXISTS t_predict_record (
   UNIQUE KEY uk_ball_key (fball_key)
 ) COMMENT '预测号码';
 
+-- 计算错误日志表
+CREATE TABLE IF NOT EXISTS t_calc_error_log (
+  fid         BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键',
+  fissue      VARCHAR(20) NOT NULL COMMENT '期号',
+  fcalc_type  VARCHAR(10) NOT NULL COMMENT '计算类型：purchase / predict',
+  fid_start   BIGINT NOT NULL COMMENT '分片起始ID',
+  fid_end     BIGINT NOT NULL COMMENT '分片结束ID（不包含）',
+  ferror_msg  TEXT COMMENT '异常信息',
+  fstatus     TINYINT NOT NULL DEFAULT 0 COMMENT '状态：0=待处理,1=已重试成功,2=已忽略',
+  fretry_count INT DEFAULT 0 COMMENT '已重试次数',
+  fcreated_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间'
+) COMMENT '计算错误日志';
+
 -- 存量数据补填 fball_key（已有数据的库执行此脚本时使用）
 -- ALTER TABLE t_lottery_result ADD COLUMN fball_key VARCHAR(60) NOT NULL DEFAULT '' COMMENT '号码复合键：期号-红1-红2-红3-红4-红5-红6-蓝', ADD UNIQUE KEY uk_ball_key (fball_key);
 -- UPDATE t_lottery_result SET fball_key = CONCAT(fissue,'-',fred1,'-',fred2,'-',fred3,'-',fred4,'-',fred5,'-',fred6,'-',fblue);
@@ -67,3 +85,10 @@ CREATE TABLE IF NOT EXISTS t_predict_record (
 
 -- 如果购买记录表已有 idx_ball_key 普通索引，需先删除再建唯一索引：
 -- ALTER TABLE t_purchase_record DROP INDEX idx_ball_key, ADD UNIQUE KEY uk_ball_key (fball_key);
+
+-- 彩票接口同步：t_lottery_result 新增 5 个字段
+-- ALTER TABLE t_lottery_result ADD COLUMN fprize_json TEXT COMMENT '奖品分配JSON（原始数据，供后台解析）' AFTER fball_key;
+-- ALTER TABLE t_lottery_result ADD COLUMN fprize_text TEXT COMMENT '奖品分配可读文本' AFTER fprize_json;
+-- ALTER TABLE t_lottery_result ADD COLUMN fdeadline DATE COMMENT '最后领奖日期' AFTER fprize_text;
+-- ALTER TABLE t_lottery_result ADD COLUMN fsale_amount DECIMAL(16,2) COMMENT '本期销售金额（元）' AFTER fdeadline;
+-- ALTER TABLE t_lottery_result ADD COLUMN fpool_amount DECIMAL(16,2) COMMENT '奖池总金额（元）' AFTER fsale_amount;

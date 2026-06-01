@@ -29,8 +29,11 @@
             <if test="issue != null and issue != ''">
                 AND fissue LIKE CONCAT('%', #{issue}, '%')
             </if>
-            <if test="prizeLevel != null">
-                AND fprize_level = #{prizeLevel}
+            <if test="prizeLevels != null and prizeLevels.size() > 0">
+                AND fprize_level IN
+                <foreach collection="prizeLevels" item="lv" open="(" separator="," close=")">
+                    #{lv}
+                </foreach>
             </if>
         </where>
         ORDER BY fissue DESC, fcreated_at DESC
@@ -52,6 +55,17 @@
             COALESCE(SUM(fquantity), 0)    AS totalQuantity,
             COALESCE(SUM(fprize_money), 0) AS totalPrizeMoney
         FROM t_purchase_record
+        <where>
+            <if test="issue != null and issue != ''">
+                AND fissue LIKE CONCAT('%', #{issue}, '%')
+            </if>
+            <if test="prizeLevels != null and prizeLevels.size() > 0">
+                AND fprize_level IN
+                <foreach collection="prizeLevels" item="lv" open="(" separator="," close=")">
+                    #{lv}
+                </foreach>
+            </if>
+        </where>
     </select>
     <update id="batchUpdatePrize" parameterType="java.util.List">
         <foreach collection="list" item="r" separator=";">

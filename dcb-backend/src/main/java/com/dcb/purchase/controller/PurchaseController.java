@@ -7,6 +7,7 @@ import com.dcb.purchase.dto.PurchaseUpdateDTO;
 import com.dcb.purchase.service.PurchaseService;
 import com.dcb.purchase.vo.PurchaseRecordVO;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -14,12 +15,15 @@ import javax.validation.Valid;
 import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotEmpty;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
 /**
  * 购买记录接口
  */
+@Slf4j
 @RestController
 @RequestMapping("/api/purchase")
 @RequiredArgsConstructor
@@ -65,16 +69,33 @@ public class PurchaseController {
     @GetMapping("/list")
     public Result<PageResult<PurchaseRecordVO>> list(
             @RequestParam(required = false) String issue,
-            @RequestParam(required = false) Integer prizeLevel,
+            @RequestParam(required = false) String prizeLevels,
             @RequestParam(defaultValue = "1") @Min(1) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
-        return Result.success(purchaseService.list(issue, prizeLevel, page, size));
+        List<Integer> levelList = null;
+        if (prizeLevels != null && !prizeLevels.isEmpty()) {
+            levelList = new ArrayList<>();
+            for (String s : prizeLevels.split("_")) {
+                try { levelList.add(Integer.parseInt(s.trim())); } catch (NumberFormatException ignored) {}
+            }
+        }
+        log.info("查询购买记录：issue={}, prizeLevels={}, parsed={}", issue, prizeLevels, levelList);
+        return Result.success(purchaseService.list(issue, levelList, page, size));
     }
 
     /** 汇总统计：总投入、总奖金、盈亏 */
     @GetMapping("/summary")
-    public Result<Map<String, Object>> summary() {
-        return Result.success(purchaseService.summary());
+    public Result<Map<String, Object>> summary(
+            @RequestParam(required = false) String issue,
+            @RequestParam(required = false) String prizeLevels) {
+        List<Integer> levelList = null;
+        if (prizeLevels != null && !prizeLevels.isEmpty()) {
+            levelList = new ArrayList<>();
+            for (String s : prizeLevels.split("_")) {
+                try { levelList.add(Integer.parseInt(s.trim())); } catch (NumberFormatException ignored) {}
+            }
+        }
+        return Result.success(purchaseService.summary(issue, levelList));
     }
 
     /** 按期号删除该期所有购买记录，返回删除条数 */

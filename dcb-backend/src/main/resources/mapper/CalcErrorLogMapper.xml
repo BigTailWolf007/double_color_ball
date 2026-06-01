@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.dcb.calcerror.mapper.CalcErrorLogMapper">
+
+    <resultMap id="BaseResultMap" type="com.dcb.calcerror.entity.CalcErrorLog">
+        <id     column="fid"          property="id"/>
+        <result column="fissue"       property="issue"/>
+        <result column="fcalc_type"   property="calcType"/>
+        <result column="fid_start"    property="idStart"/>
+        <result column="fid_end"      property="idEnd"/>
+        <result column="ferror_msg"   property="errorMsg"/>
+        <result column="fstatus"      property="status"/>
+        <result column="fretry_count" property="retryCount"/>
+        <result column="fcreated_at"  property="createdAt"/>
+    </resultMap>
+
+    <select id="selectPage" resultMap="BaseResultMap">
+        SELECT fid, fissue, fcalc_type, fid_start, fid_end, ferror_msg, fstatus, fretry_count, fcreated_at
+        FROM t_calc_error_log
+        <where>
+            <if test="issue != null and issue != ''">
+                AND fissue LIKE CONCAT('%', #{issue}, '%')
+            </if>
+        </where>
+        ORDER BY fcreated_at DESC
+    </select>
+
+</mapper>

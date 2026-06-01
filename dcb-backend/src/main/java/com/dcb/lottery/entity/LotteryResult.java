@@ -66,6 +66,26 @@ public class LotteryResult {
     @TableField("fball_key")
     private String ballKey;
 
+    /** 奖品分配JSON（原始数据，供后台解析） */
+    @TableField("fprize_json")
+    private String prizeJson;
+
+    /** 奖品分配可读文本（如：一等奖8注6,130,798元；二等奖135注268,041元；...） */
+    @TableField("fprize_text")
+    private String prizeText;
+
+    /** 最后领奖日期 */
+    @TableField("fdeadline")
+    private LocalDate deadline;
+
+    /** 本期销售金额（元） */
+    @TableField("fsale_amount")
+    private java.math.BigDecimal saleAmount;
+
+    /** 奖池总金额（元） */
+    @TableField("fpool_amount")
+    private java.math.BigDecimal poolAmount;
+
     /** 创建时间 */
     @TableField("fcreated_at")
     private LocalDateTime createdAt;

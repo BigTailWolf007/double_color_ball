@@ -97,6 +97,21 @@ document.getElementById('modal-close').addEventListener('click', closeModal)
 // ===== 号码格式化 =====
 function pad(n) { return String(n).padStart(2, '0') }
 
+// ===== 渲染号码（命中高亮） =====
+function renderBalls(reds, blue, drawReds, drawBlue) {
+  const drawRedSet = drawReds ? new Set(drawReds) : new Set()
+  const hitClass = 'style="background:#67c23a;border-color:#67c23a;color:#fff;"'
+  let html = ''
+  reds.forEach(r => {
+    html += `<span class="tag tag-danger" ${drawRedSet.has(r) ? hitClass : ''}>${pad(r)}</span>`
+  })
+  if (blue != null) {
+    const hit = drawBlue != null && blue === drawBlue
+    html += `<span class="tag tag-primary" ${hit ? hitClass : ''}>${pad(blue)}</span>`
+  }
+  return html
+}
+
 // ===== 渲染红球标签 =====
 function renderReds(reds) {
   return (reds || []).map(n => `<span class="tag tag-danger">${pad(n)}</span>`).join('')

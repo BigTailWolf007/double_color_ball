@@ -2,10 +2,12 @@ package com.dcb.predict.controller;
 
 import com.dcb.common.result.PageResult;
 import com.dcb.common.result.Result;
+import com.dcb.common.service.AsyncCalcService;
 import com.dcb.predict.dto.PredictSaveDTO;
 import com.dcb.predict.service.PredictService;
 import com.dcb.predict.vo.PredictRecordVO;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -25,6 +27,7 @@ import java.util.List;
 /**
  * 预测号码接口
  */
+@Slf4j
 @RestController
 @RequestMapping("/api/predict")
 @RequiredArgsConstructor
@@ -32,6 +35,7 @@ import java.util.List;
 public class PredictController {
 
     private final PredictService predictService;
+    private final AsyncCalcService asyncCalcService;
 
     /** 保存规则推荐模块生成的预测号码，若该期已开奖则立即计算命中结果 */
     @PostMapping("/save")
@@ -40,10 +44,12 @@ public class PredictController {
         return Result.success();
     }
 
-    /** 手动触发指定期号的预测命中结果补算，返回更新条数 */
+    /** 手动触发重新计算（异步多线程） */
     @PostMapping("/calc/{issue}")
-    public Result<Integer> calc(@PathVariable String issue) {
-        return Result.success(predictService.calc(issue));
+    public Result<String> calc(@PathVariable String issue) {
+        log.info("提交异步重新计算预测命中结果，期号：{}", issue);
+        asyncCalcService.asyncRecalcPredict(issue);
+        return Result.success("已提交异步重新计算任务");
     }
 
     /** 分页查询预测号码，支持按目标期号筛选 */

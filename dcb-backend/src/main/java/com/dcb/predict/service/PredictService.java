@@ -108,26 +108,25 @@ public class PredictService {
     }
 
     /**
-     * 手动触发补算指定期号所有待开奖预测记录的命中结果
+     * 手动触发重新计算指定期号所有预测记录的命中结果
      */
     @Transactional(rollbackFor = Exception.class)
     public int calc(String issue) {
-        log.info("开始补算期号 {} 的预测命中结果", issue);
+        log.info("开始重新计算期号 {} 的预测命中结果", issue);
         LotteryResult lottery = lotteryService.getByIssue(issue);
         if (lottery == null) {
-            log.warn("期号 {} 暂无开奖号码，无法补算", issue);
+            log.warn("期号 {} 暂无开奖号码，无法计算", issue);
             return 0;
         }
         List<PredictRecord> records = predictRecordMapper.selectList(
                 new LambdaQueryWrapper<PredictRecord>()
-                        .eq(PredictRecord::getIssue, issue)
-                        .isNull(PredictRecord::getPrizeLevel));
+                        .eq(PredictRecord::getIssue, issue));
         if (records.isEmpty()) {
             return 0;
         }
         records.forEach(record -> calcAndFill(record, lottery));
         predictRecordMapper.batchUpdateHitResult(records);
-        log.info("期号 {} 预测补算完成，共更新 {} 条记录", issue, records.size());
+        log.info("期号 {} 重新计算完成，共更新 {} 条记录", issue, records.size());
         return records.size();
     }
 
@@ -240,6 +239,40 @@ public class PredictService {
         log.info("导出预测号码，期号：{}，共 {} 条", issues, records.size());
     }
 
+    /**
+     * 分片批量计算预测记录命中结果（供异步多线程调用）
+     *
+     * @param issue    期号
+     * @param idStart  分片起始 ID（包含）
+     * @param idEnd    分片结束 ID（不包含）
+     * @param lottery  开奖号码
+     */
+    public void calcBatch(String issue, long idStart, long idEnd, LotteryResult lottery) {
+        List<PredictRecord> records = predictRecordMapper.selectList(
+                new LambdaQueryWrapper<PredictRecord>()
+                        .eq(PredictRecord::getIssue, issue)
+                        .ge(PredictRecord::getId, idStart)
+                        .lt(PredictRecord::getId, idEnd)
+                        .isNull(PredictRecord::getPrizeLevel));
+        if (records.isEmpty()) return;
+        records.forEach(record -> calcAndFill(record, lottery));
+        predictRecordMapper.batchUpdateHitResult(records);
+    }
+
+    /**
+     * 全量重算分片（不过滤 NULL，重新计算所有记录）
+     */
+    public void recalcBatch(String issue, long idStart, long idEnd, LotteryResult lottery) {
+        List<PredictRecord> records = predictRecordMapper.selectList(
+                new LambdaQueryWrapper<PredictRecord>()
+                        .eq(PredictRecord::getIssue, issue)
+                        .ge(PredictRecord::getId, idStart)
+                        .lt(PredictRecord::getId, idEnd));
+        if (records.isEmpty()) return;
+        records.forEach(record -> calcAndFill(record, lottery));
+        predictRecordMapper.batchUpdateHitResult(records);
+    }
+
     private void calcAndFill(PredictRecord record, LotteryResult lottery) {
         List<Integer> predictReds = Arrays.asList(
                 record.getRed1(), record.getRed2(), record.getRed3(),
@@ -260,12 +293,17 @@ public class PredictService {
     private PredictRecordVO toVO(PredictRecord r) {
         String desc = r.getPrizeLevel() == null ? "待开奖"
                 : PrizeLevel.ofLevel(r.getPrizeLevel()).getDesc();
+        // 获取开奖号码用于前端命中高亮
+        LotteryResult lottery = lotteryService.getByIssue(r.getIssue());
         return PredictRecordVO.builder()
                 .id(r.getId())
                 .issue(r.getIssue())
                 .reds(LotteryUtils.toRedList(r.getRed1(), r.getRed2(), r.getRed3(),
                         r.getRed4(), r.getRed5(), r.getRed6()))
                 .blue(r.getBlue())
+                .drawReds(lottery != null ? LotteryUtils.toRedList(lottery.getRed1(), lottery.getRed2(), lottery.getRed3(),
+                        lottery.getRed4(), lottery.getRed5(), lottery.getRed6()) : null)
+                .drawBlue(lottery != null ? lottery.getBlue() : null)
                 .hitRed(r.getHitRed())
                 .hitBlue(r.getHitBlue())
                 .prizeLevel(r.getPrizeLevel())

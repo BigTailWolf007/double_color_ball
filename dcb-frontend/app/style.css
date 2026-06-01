@@ -52,6 +52,62 @@ body {
 
 .placeholder-icon { font-size: 24px; }
 
+/* ===== 冷热号分析卡片 ===== */
+.analysis-row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.analysis-card {
+  flex: 1;
+  min-width: 220px;
+  background: #fff;
+  border: 1px solid #ebeef5;
+  border-radius: 6px;
+  padding: 12px 14px;
+}
+.analysis-card .card-title {
+  font-size: 13px;
+  font-weight: bold;
+  color: #303133;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.analysis-card .card-title .badge {
+  background: #409eff;
+  color: #fff;
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+.analysis-card .ball-row {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.analysis-card .ball-row .label {
+  font-size: 11px;
+  color: #909399;
+  margin-right: 4px;
+  white-space: nowrap;
+  line-height: 22px;
+}
+.analysis-card .ball-row .ball {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  font-size: 11px;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+}
+.ball-red { background: #f56c6c; }
+.ball-blue { background: #409eff; }
+
 /* ===== Tab 容器 ===== */
 .app-tabs-container {
   flex: 1;
@@ -166,6 +222,8 @@ body {
   font-weight: bold;
 }
 
+.card-header-actions { display: flex; gap: 8px; }
+
 .card-body { padding: 20px; }
 
 /* ===== 表单 ===== */
@@ -192,6 +250,57 @@ body {
 .form-input:focus, .form-select:focus { border-color: #409eff; }
 
 .form-input[type="date"] { padding: 5px 10px; }
+
+/* ===== 多选下拉 ===== */
+.multi-select { position: relative; display: inline-block; }
+.multi-select-trigger {
+  cursor: pointer;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  padding: 5px 10px;
+  font-size: 13px;
+  background: #fff;
+  min-width: 150px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  height: 32px;
+  box-sizing: border-box;
+  transition: border-color 0.2s;
+}
+.multi-select-trigger:hover { border-color: #409eff; }
+.multi-select-drop {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 999;
+  background: #fff;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  box-shadow: 0 2px 12px rgba(0,0,0,.12);
+  min-width: 100%;
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+.multi-select-drop label {
+  display: flex;
+  align-items: center;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #303133;
+  transition: background 0.15s;
+}
+.multi-select-drop label:hover { background: #f5f7fa; }
+.multi-select-drop input[type="checkbox"] {
+  margin-right: 8px;
+  accent-color: #409eff;
+}
 
 .form-error {
   color: #f56c6c;

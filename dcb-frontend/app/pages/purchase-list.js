@@ -1,12 +1,12 @@
 const PurchaseList = (() => {
-  let state = { page: 1, size: 20, total: 0, issue: '', prizeLevel: '' }
+  let state = { page: 1, size: 20, total: 0, issue: '', prizeLevels: [1,2,3,4,5,6,7] }
   let selectedIds = new Set()
 
   const prizeLevelOptions = [
     { label: '一等奖', value: 1 }, { label: '二等奖', value: 2 },
     { label: '三等奖', value: 3 }, { label: '四等奖', value: 4 },
     { label: '五等奖', value: 5 }, { label: '六等奖', value: 6 },
-    { label: '未中奖', value: 0 }
+    { label: '福运奖', value: 7 }, { label: '未中奖', value: 0 }
   ]
 
   function render() {
@@ -26,17 +26,31 @@ const PurchaseList = (() => {
             <label>期号</label>
             <input class="form-input" id="q-issue" placeholder="请输入期号" value="${state.issue}" style="width:160px;" />
             <label>中奖等级</label>
-            <select class="form-select" id="q-level" style="width:120px;">
-              <option value="">全部</option>
-              ${prizeLevelOptions.map(o => `<option value="${o.value}" ${state.prizeLevel === String(o.value) ? 'selected' : ''}>${o.label}</option>`).join('')}
-            </select>
+            <div class="multi-select" id="q-level-wrap">
+              <div class="multi-select-trigger" id="q-level-trigger">
+                <span id="q-level-text">全部等级 ▾</span>
+              </div>
+              <div class="multi-select-drop" id="q-level-drop">
+                ${prizeLevelOptions.map(o => `
+                  <label data-v="${o.value}">
+                    <input type="checkbox" value="${o.value}" ${state.prizeLevels.includes(o.value) ? 'checked' : ''} />${o.label}
+                  </label>`).join('')}
+              </div>
+            </div>
             <button class="btn btn-primary" id="btn-search">查询</button>
             <button class="btn btn-default" id="btn-reset">重置</button>
           </div>
-          <div class="stat-cards" id="stat-cards" style="margin-top:0;margin-bottom:16px;">
-            <div class="stat-card"><div class="stat-label">总投入</div><div class="stat-value" id="stat-cost">-</div></div>
-            <div class="stat-card"><div class="stat-label">总奖金</div><div class="stat-value" style="color:#67c23a;" id="stat-prize">-</div></div>
-            <div class="stat-card"><div class="stat-label">盈亏</div><div class="stat-value" id="stat-profit">-</div></div>
+          <div class="stat-cards" id="stat-cards" style="margin-top:0;margin-bottom:16px;display:flex;gap:24px;flex-wrap:wrap;">
+            <div style="display:flex;gap:12px;flex:1;">
+              <div class="stat-card" style="flex:1;"><div class="stat-label">全部总投入</div><div class="stat-value" id="stat-cost-all">-</div></div>
+              <div class="stat-card" style="flex:1;"><div class="stat-label">全部总奖金</div><div class="stat-value" style="color:#67c23a;" id="stat-prize-all">-</div></div>
+              <div class="stat-card" style="flex:1;"><div class="stat-label">全部盈亏</div><div class="stat-value" id="stat-profit-all">-</div></div>
+            </div>
+            <div style="display:flex;gap:12px;flex:1;">
+              <div class="stat-card" style="flex:1;"><div class="stat-label">当前总投入</div><div class="stat-value" id="stat-cost">-</div></div>
+              <div class="stat-card" style="flex:1;"><div class="stat-label">当前总奖金</div><div class="stat-value" style="color:#67c23a;" id="stat-prize">-</div></div>
+              <div class="stat-card" style="flex:1;"><div class="stat-label">当前盈亏</div><div class="stat-value" id="stat-profit">-</div></div>
+            </div>
           </div>
           <div class="table-scroll" style="flex:1;min-height:0;">
             <table>
@@ -57,15 +71,16 @@ const PurchaseList = (() => {
 
     document.getElementById('btn-search').addEventListener('click', () => {
       state.issue = document.getElementById('q-issue').value.trim()
-      state.prizeLevel = document.getElementById('q-level').value
       state.page = 1
       fetchList()
+      fetchSummary()
     })
     document.getElementById('btn-reset').addEventListener('click', () => {
-      state.issue = ''; state.prizeLevel = ''; state.page = 1
+      state.issue = ''; state.prizeLevels = [1,2,3,4,5,6,7]; state.page = 1
       document.getElementById('q-issue').value = ''
-      document.getElementById('q-level').value = ''
+      updateMultiSelect()
       fetchList()
+      fetchSummary()
     })
     document.getElementById('btn-recalc').addEventListener('click', handleRecalc)
     document.getElementById('btn-delete-issue').addEventListener('click', handleDeleteByIssue)
@@ -84,8 +99,31 @@ const PurchaseList = (() => {
 
     renderIssueInput('q-issue', '/api/purchase/issue-suggest', val => { state.issue = val })
 
+    // 多选下拉逻辑
+    const trigger = document.getElementById('q-level-trigger')
+    const drop = document.getElementById('q-level-drop')
+    trigger.addEventListener('click', (e) => {
+      e.stopPropagation()
+      drop.style.display = drop.style.display === 'none' ? 'block' : 'none'
+    })
+    document.addEventListener('click', () => { drop.style.display = 'none' })
+    drop.addEventListener('click', (e) => { e.stopPropagation() })
+    drop.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.addEventListener('change', () => {
+        const v = parseInt(cb.value)
+        if (cb.checked) {
+          if (!state.prizeLevels.includes(v)) state.prizeLevels.push(v)
+        } else {
+          state.prizeLevels = state.prizeLevels.filter(l => l !== v)
+        }
+        updateMultiSelect()
+      })
+    })
+    updateMultiSelect()
+
     fetchList()
     fetchSummary()
+    fetchAllSummary()
   }
 
   function updateActionBtns() {
@@ -95,6 +133,29 @@ const PurchaseList = (() => {
     if (deleteBtn) deleteBtn.disabled = selectedIds.size === 0
   }
 
+  function updateMultiSelect() {
+    const textEl = document.getElementById('q-level-text')
+    const drop = document.getElementById('q-level-drop')
+    if (!textEl) return
+    if (state.prizeLevels.length === 0) {
+      textEl.textContent = '未选择 ▾'
+    } else if (state.prizeLevels.length === prizeLevelOptions.length) {
+      textEl.textContent = '全部等级 ▾'
+    } else {
+      const names = state.prizeLevels.map(v => {
+        const opt = prizeLevelOptions.find(o => o.value === v)
+        return opt ? opt.label : v
+      })
+      textEl.textContent = names.join(',') + ' ▾'
+    }
+    // 同步复选框状态
+    if (drop) {
+      drop.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+        cb.checked = state.prizeLevels.includes(parseInt(cb.value))
+      })
+    }
+  }
+
   async function fetchList() {
     const tbody = document.getElementById('table-body')
     if (!tbody) return
@@ -102,7 +163,7 @@ const PurchaseList = (() => {
     try {
       const params = { page: state.page, size: state.size }
       if (state.issue) params.issue = state.issue
-      if (state.prizeLevel !== '') params.prizeLevel = state.prizeLevel
+      if (state.prizeLevels.length > 0) params.prizeLevels = state.prizeLevels.join('_')
       const res = await api.get('/api/purchase/list', params)
       const list = res.data.list || []
       state.total = res.data.total || 0
@@ -116,7 +177,7 @@ const PurchaseList = (() => {
           return `<tr>
             <td style="text-align:center;"><input type="checkbox" class="row-check" data-id="${row.id}" ${checked} /></td>
             <td>${row.issue}</td>
-            <td>${renderReds(row.reds)}${renderBlue(row.blue)}</td>
+            <td>${renderBalls(row.reds, row.blue, row.drawReds, row.drawBlue)}</td>
             <td class="text-center">${row.quantity}</td>
             <td class="text-center">${renderPrizeLevel(row.prizeLevel, row.prizeLevelDesc)}</td>
             <td class="text-right" style="color:${prizeColor};">¥${row.prizeMoney ?? '-'}</td>
@@ -166,18 +227,31 @@ const PurchaseList = (() => {
 
   async function fetchSummary() {
     try {
-      const res = await api.get('/api/purchase/summary')
-      const s = res.data
-      const costEl = document.getElementById('stat-cost')
-      const prizeEl = document.getElementById('stat-prize')
-      const profitEl = document.getElementById('stat-profit')
-      if (costEl) costEl.textContent = `¥${s.totalCost}`
-      if (prizeEl) prizeEl.textContent = `¥${s.totalPrizeMoney}`
-      if (profitEl) {
-        profitEl.textContent = `${s.profit >= 0 ? '+' : ''}¥${s.profit}`
-        profitEl.style.color = s.profit >= 0 ? '#67c23a' : '#f56c6c'
-      }
+      const params = {}
+      if (state.issue) params.issue = state.issue
+      if (state.prizeLevels.length > 0) params.prizeLevels = state.prizeLevels.join('_')
+      const res = await api.get('/api/purchase/summary', params)
+      renderSummaryData(res.data, 'stat-cost', 'stat-prize', 'stat-profit')
     } catch (e) {}
+  }
+
+  async function fetchAllSummary() {
+    try {
+      const res = await api.get('/api/purchase/summary')
+      renderSummaryData(res.data, 'stat-cost-all', 'stat-prize-all', 'stat-profit-all')
+    } catch (e) {}
+  }
+
+  function renderSummaryData(s, costId, prizeId, profitId) {
+    const costEl = document.getElementById(costId)
+    const prizeEl = document.getElementById(prizeId)
+    const profitEl = document.getElementById(profitId)
+    if (costEl) costEl.textContent = `¥${s.totalCost}`
+    if (prizeEl) prizeEl.textContent = `¥${s.totalPrizeMoney}`
+    if (profitEl) {
+      profitEl.textContent = `${s.profit >= 0 ? '+' : ''}¥${s.profit}`
+      profitEl.style.color = s.profit >= 0 ? '#67c23a' : '#f56c6c'
+    }
   }
 
   function handleEdit(id, quantity, remark) {
@@ -206,6 +280,7 @@ const PurchaseList = (() => {
         toast('保存成功')
         fetchList()
         fetchSummary()
+        fetchAllSummary()
       } catch (e) {}
     })
   }
@@ -218,6 +293,7 @@ const PurchaseList = (() => {
       toast('删除成功')
       fetchList()
       fetchSummary()
+      fetchAllSummary()
     } catch (e) {}
   }
 
@@ -229,6 +305,7 @@ const PurchaseList = (() => {
       toast(`已删除期号 ${issue} 的 ${res.data} 条购买记录`)
       fetchList()
       fetchSummary()
+      fetchAllSummary()
     } catch (e) {}
   }
 
@@ -241,6 +318,7 @@ const PurchaseList = (() => {
       selectedIds.clear()
       fetchList()
       fetchSummary()
+      fetchAllSummary()
     } catch (e) {}
   }
 
@@ -253,6 +331,7 @@ const PurchaseList = (() => {
       selectedIds.clear()
       fetchList()
       fetchSummary()
+      fetchAllSummary()
     } catch (e) {}
   }
 

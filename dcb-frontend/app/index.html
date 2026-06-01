@@ -12,11 +12,10 @@
     <span class="app-title">双色球分析系统</span>
   </header>
 
-  <!-- 数据卡片区（预留） -->
+  <!-- 数据卡片区 -->
   <section class="app-cards" id="app-cards">
-    <div class="placeholder-card">
-      <span class="placeholder-icon">📊</span>
-      <span>彩票分析数据（预留）</span>
+    <div class="analysis-row" id="analysis-row">
+      <span style="color:#909399;">📊 冷热号分析加载中...</span>
     </div>
   </section>
 
@@ -81,6 +80,7 @@
 
   <script src="api.js"></script>
   <script src="utils.js"></script>
+  <script src="pages/calc-error-log.js"></script>
   <script src="pages/lottery-list.js"></script>
   <script src="pages/lottery-import.js"></script>
   <script src="pages/purchase-list.js"></script>
@@ -88,5 +88,42 @@
   <script src="pages/predict-list.js"></script>
   <script src="pages/recommend.js"></script>
   <script src="router.js"></script>
+  <script>
+    // 冷热号分析（页面加载时异步请求，不影响其他数据加载）
+    (function(){
+      var row = document.getElementById('analysis-row');
+      if(!row) return;
+      fetch(BASE_URL + '/api/lottery/analysis')
+        .then(function(r){ return r.json() })
+        .then(function(res){
+          if(res.code !== 200) return;
+          var d = res.data;
+          var periods = [100, 50, 20, 10];
+          var pad = function(n){ return String(n).padStart(2,'0') };
+          var html = '';
+          periods.forEach(function(p){
+            var data = d['periods' + p];
+            if(!data) return;
+            html += '<div class="analysis-card">';
+            html += '<div class="card-title">📊 近' + p + '期冷热号 <span class="badge">' + data.sampleSize + '期样本</span></div>';
+            html += '<div class="ball-row"><span class="label">🔴热号</span>';
+            data.redHot.forEach(function(n){ html += '<span class="ball ball-red">' + pad(n) + '</span>' });
+            html += '</div>';
+            html += '<div class="ball-row"><span class="label">🔴冷号</span>';
+            data.redCold.forEach(function(n){ html += '<span class="ball ball-red" style="opacity:0.5;">' + pad(n) + '</span>' });
+            html += '</div>';
+            html += '<div class="ball-row"><span class="label">🔵热号</span>';
+            data.blueHot.forEach(function(n){ html += '<span class="ball ball-blue">' + pad(n) + '</span>' });
+            html += '</div>';
+            html += '<div class="ball-row"><span class="label">🔵冷号</span>';
+            data.blueCold.forEach(function(n){ html += '<span class="ball ball-blue" style="opacity:0.5;">' + pad(n) + '</span>' });
+            html += '</div>';
+            html += '</div>';
+          });
+          row.innerHTML = html;
+        })
+        .catch(function(){ row.innerHTML = '<span style="color:#f56c6c;">分析数据加载失败</span>' });
+    })();
+  </script>
 </body>
 </html>

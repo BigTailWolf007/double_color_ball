@@ -29,6 +29,12 @@ public class PredictRecordVO {
     /** 蓝球 */
     private Integer blue;
 
+    /** 开奖红球（用于前端命中高亮） */
+    private List<Integer> drawReds;
+
+    /** 开奖蓝球（用于前端命中高亮） */
+    private Integer drawBlue;
+
     /** 命中红球数(NULL=待开奖) */
     private Integer hitRed;
 

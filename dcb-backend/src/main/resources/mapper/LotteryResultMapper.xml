@@ -15,11 +15,16 @@
         <result column="fred6"       property="red6"/>
         <result column="fblue"       property="blue"/>
         <result column="fball_key"   property="ballKey"/>
+        <result column="fprize_json" property="prizeJson"/>
+        <result column="fprize_text" property="prizeText"/>
+        <result column="fdeadline"   property="deadline"/>
+        <result column="fsale_amount" property="saleAmount"/>
+        <result column="fpool_amount" property="poolAmount"/>
         <result column="fcreated_at" property="createdAt"/>
     </resultMap>
 
     <select id="selectPage" resultMap="BaseResultMap">
-        SELECT fid, fissue, fdraw_date, fred1, fred2, fred3, fred4, fred5, fred6, fblue, fball_key, fcreated_at
+        SELECT fid, fissue, fdraw_date, fred1, fred2, fred3, fred4, fred5, fred6, fblue, fball_key, fprize_json, fprize_text, fdeadline, fsale_amount, fpool_amount, fcreated_at
         FROM t_lottery_result
         <where>
             <if test="issue != null and issue != ''">
@@ -36,7 +41,7 @@
     </select>
 
     <select id="selectByBallKeys" resultMap="BaseResultMap">
-        SELECT fid, fissue, fdraw_date, fred1, fred2, fred3, fred4, fred5, fred6, fblue, fball_key, fcreated_at
+        SELECT fid, fissue, fdraw_date, fred1, fred2, fred3, fred4, fred5, fred6, fblue, fball_key, fprize_json, fprize_text, fdeadline, fsale_amount, fpool_amount, fcreated_at
         FROM t_lottery_result
         WHERE fball_key IN
         <foreach collection="keys" item="k" open="(" separator="," close=")">
@@ -45,7 +50,7 @@
     </select>
 
     <select id="selectByIssues" resultMap="BaseResultMap">
-        SELECT fid, fissue, fdraw_date, fred1, fred2, fred3, fred4, fred5, fred6, fblue, fball_key, fcreated_at
+        SELECT fid, fissue, fdraw_date, fred1, fred2, fred3, fred4, fred5, fred6, fblue, fball_key, fprize_json, fprize_text, fdeadline, fsale_amount, fpool_amount, fcreated_at
         FROM t_lottery_result
         WHERE fissue IN
         <foreach collection="issues" item="i" open="(" separator="," close=")">
