@@ -6,6 +6,7 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://localhost:3306/double_color_ball?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowMultiQueries=true
     username: root
+    # 生产环境通过启动参数覆盖：--spring.datasource.password=xxx
     password: JinDie$20210701
   servlet:
     multipart:
@@ -13,9 +14,6 @@ spring:
       max-request-size: 10MB
   cache:
     type: caffeine
-    caffeine:
-      # 最多缓存50个不同查询条件的结果，10分钟无访问后过期
-      spec: maximumSize=50,expireAfterAccess=600s
 
 mybatis-plus:
   configuration:

@@ -87,6 +87,14 @@ public class PredictService {
                     .red4(dto.getRed4()).red5(dto.getRed5()).red6(dto.getRed6())
                     .blue(dto.getBlue())
                     .ballKey(key)
+                    .sumVal(LotteryUtils.calcSum(dto.getRed1(), dto.getRed2(), dto.getRed3(),
+                            dto.getRed4(), dto.getRed5(), dto.getRed6()))
+                    .zoneRatio(LotteryUtils.calcZoneRatio(dto.getRed1(), dto.getRed2(), dto.getRed3(),
+                            dto.getRed4(), dto.getRed5(), dto.getRed6()))
+                    .oddEvenRatio(LotteryUtils.calcOddEvenRatio(dto.getRed1(), dto.getRed2(), dto.getRed3(),
+                            dto.getRed4(), dto.getRed5(), dto.getRed6()))
+                    .rangeVal(LotteryUtils.calcRange(dto.getRed1(), dto.getRed2(), dto.getRed3(),
+                            dto.getRed4(), dto.getRed5(), dto.getRed6()))
                     .build();
 
             LotteryResult lottery = lotteryCache.get(dto.getIssue());
@@ -309,6 +317,10 @@ public class PredictService {
                 .prizeLevel(r.getPrizeLevel())
                 .prizeLevelDesc(desc)
                 .createdAt(r.getCreatedAt())
+                .sumVal(r.getSumVal())
+                .zoneRatio(r.getZoneRatio())
+                .oddEvenRatio(r.getOddEvenRatio())
+                .rangeVal(r.getRangeVal())
                 .build();
     }
 }

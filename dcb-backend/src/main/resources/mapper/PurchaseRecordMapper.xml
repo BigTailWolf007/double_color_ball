@@ -19,11 +19,16 @@
         <result column="fprize_money" property="prizeMoney"/>
         <result column="fremark"      property="remark"/>
         <result column="fcreated_at"  property="createdAt"/>
+        <result column="fsum_val"        property="sumVal"/>
+        <result column="fzone_ratio"     property="zoneRatio"/>
+        <result column="fodd_even_ratio" property="oddEvenRatio"/>
+        <result column="frange_val"      property="rangeVal"/>
     </resultMap>
 
     <select id="selectPageByCondition" resultMap="BaseResultMap">
         SELECT fid, fissue, fred1, fred2, fred3, fred4, fred5, fred6, fblue, fball_key,
-               fquantity, fprize_level, fprize_money, fremark, fcreated_at
+               fquantity, fprize_level, fprize_money, fremark, fcreated_at,
+               fsum_val, fzone_ratio, fodd_even_ratio, frange_val
         FROM t_purchase_record
         <where>
             <if test="issue != null and issue != ''">

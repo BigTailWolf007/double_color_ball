@@ -73,6 +73,22 @@ public class PredictRecord {
     @TableField("fprize_level")
     private Integer prizeLevel;
 
+    /** 红球和值 */
+    @TableField("fsum_val")
+    private Integer sumVal;
+
+    /** 区间比（低:中:高），如 2:2:2 */
+    @TableField("fzone_ratio")
+    private String zoneRatio;
+
+    /** 奇偶比（奇:偶），如 3:3 */
+    @TableField("fodd_even_ratio")
+    private String oddEvenRatio;
+
+    /** 跨度（红球最大值-最小值） */
+    @TableField("frange_val")
+    private Integer rangeVal;
+
     /** 创建时间 */
     @TableField("fcreated_at")
     private LocalDateTime createdAt;

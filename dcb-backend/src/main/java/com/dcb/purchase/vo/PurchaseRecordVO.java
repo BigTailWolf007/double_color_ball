@@ -53,4 +53,16 @@ public class PurchaseRecordVO {
 
     /** 创建时间 */
     private LocalDateTime createdAt;
+
+    /** 红球和值 */
+    private Integer sumVal;
+
+    /** 区间比（低:中:高），如 2:2:2 */
+    private String zoneRatio;
+
+    /** 奇偶比（奇:偶），如 3:3 */
+    private String oddEvenRatio;
+
+    /** 跨度（红球最大值-最小值） */
+    private Integer rangeVal;
 }

@@ -21,7 +21,14 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * 购买记录服务
@@ -55,6 +62,14 @@ public class PurchaseService {
                     .ballKey(LotteryUtils.buildBallKey(dto))
                     .quantity(dto.getQuantity())
                     .remark(dto.getRemark())
+                    .sumVal(LotteryUtils.calcSum(dto.getRed1(), dto.getRed2(), dto.getRed3(),
+                            dto.getRed4(), dto.getRed5(), dto.getRed6()))
+                    .zoneRatio(LotteryUtils.calcZoneRatio(dto.getRed1(), dto.getRed2(), dto.getRed3(),
+                            dto.getRed4(), dto.getRed5(), dto.getRed6()))
+                    .oddEvenRatio(LotteryUtils.calcOddEvenRatio(dto.getRed1(), dto.getRed2(), dto.getRed3(),
+                            dto.getRed4(), dto.getRed5(), dto.getRed6()))
+                    .rangeVal(LotteryUtils.calcRange(dto.getRed1(), dto.getRed2(), dto.getRed3(),
+                            dto.getRed4(), dto.getRed5(), dto.getRed6()))
                     .build();
 
             LotteryResult lottery = lotteryService.getByIssue(dto.getIssue());
@@ -309,6 +324,10 @@ public class PurchaseService {
                 .prizeMoney(r.getPrizeMoney())
                 .remark(r.getRemark())
                 .createdAt(r.getCreatedAt())
+                .sumVal(r.getSumVal())
+                .zoneRatio(r.getZoneRatio())
+                .oddEvenRatio(r.getOddEvenRatio())
+                .rangeVal(r.getRangeVal())
                 .build();
     }
 }

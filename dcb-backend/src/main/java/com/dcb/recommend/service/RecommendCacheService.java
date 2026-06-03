@@ -4,6 +4,7 @@ import com.dcb.common.exception.BizException;
 import com.dcb.recommend.dto.RecommendQueryDTO;
 import com.dcb.recommend.vo.RecommendCacheVO;
 import com.dcb.recommend.vo.RecommendResultVO.NumberGroupVO;
+import com.dcb.common.config.service.ConfigService;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
@@ -24,7 +25,11 @@ import java.util.TreeSet;
 @Service
 public class RecommendCacheService {
 
-    private static final int MAX_RESULT = 10000;
+    private final ConfigService configService;
+
+    public RecommendCacheService(ConfigService configService) {
+        this.configService = configService;
+    }
 
     /**
      * 全量计算并缓存，相同条件只计算一次
@@ -47,17 +52,22 @@ public class RecommendCacheService {
 
         List<NumberGroupVO> allGroups = new ArrayList<>();
         long total = 0;
+        int maxResult = configService.getInt("recommend.max.result");
+        boolean truncated = false;
+        outer:
         for (int[] reds : filteredReds) {
             for (int blue : includeBlue) {
                 total++;
-                if (total <= MAX_RESULT) {
-                    List<Integer> redList = new ArrayList<>(6);
-                    for (int r : reds) redList.add(r);
-                    allGroups.add(NumberGroupVO.builder().red(redList).blue(blue).build());
+                if (total > maxResult) {
+                    truncated = true;
+                    break outer;
                 }
+                List<Integer> redList = new ArrayList<>(6);
+                for (int r : reds) redList.add(r);
+                allGroups.add(NumberGroupVO.builder().red(redList).blue(blue).build());
             }
         }
-        return new RecommendCacheVO(total, total > MAX_RESULT, Collections.unmodifiableList(allGroups));
+        return new RecommendCacheVO(total - 1, truncated, Collections.unmodifiableList(allGroups));
     }
 
     /**
@@ -78,6 +88,8 @@ public class RecommendCacheService {
             List<Integer> sorted = new ArrayList<>(new TreeSet<>(dto.getIncludeBlue()));
             sb.append("|blue:").append(sorted);
         }
+        // 最大结果数变更时缓存自动失效
+        sb.append("|max:").append(configService.getInt("recommend.max.result"));
         return sb.toString();
     }
 

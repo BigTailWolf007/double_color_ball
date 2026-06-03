@@ -19,7 +19,7 @@ body {
   height: 60px;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
   flex-shrink: 0;
   box-shadow: 0 2px 8px rgba(64,158,255,.25);
 }
@@ -64,13 +64,13 @@ body {
   background: #fff;
   border: 1px solid #ebeef5;
   border-radius: 6px;
-  padding: 12px 14px;
+  padding: 14px 16px;
 }
 .analysis-card .card-title {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: bold;
   color: #303133;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -82,28 +82,45 @@ body {
   padding: 1px 6px;
   border-radius: 3px;
 }
-.analysis-card .ball-row {
-  display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
-  margin-bottom: 6px;
-}
-.analysis-card .ball-row .label {
-  font-size: 11px;
-  color: #909399;
-  margin-right: 4px;
-  white-space: nowrap;
-  line-height: 22px;
-}
-.analysis-card .ball-row .ball {
-  width: 22px; height: 22px;
+.analysis-card .ball {
+  width: 24px; height: 24px;
   border-radius: 50%;
-  font-size: 11px;
+  font-size: 12px;
   color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: bold;
+}
+.analysis-card .stat-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 5px;
+  font-size: 13px;
+  color: #606266;
+}
+.analysis-card .stat-label {
+  color: #909399;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.analysis-card .analysis-body {
+  display: flex;
+  gap: 16px;
+}
+.analysis-card .analysis-left {
+  flex: 1;
+  min-width: 0;
+}
+.analysis-card .analysis-right {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding-left: 16px;
+  border-left: 1px dashed #ebeef5;
 }
 .ball-red { background: #f56c6c; }
 .ball-blue { background: #409eff; }
@@ -660,3 +677,178 @@ table tr:hover td { background: #f0f7ff; }
   .stat-cards { grid-template-columns: 1fr; }
   .import-result-grid { grid-template-columns: 1fr; }
 }
+
+/* ===== 系统配置页 ===== */
+.config-card {
+  background: #fff;
+  border: 1px solid #ebeef5;
+  border-radius: 6px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+.config-card-title {
+  font-size: 15px;
+  font-weight: bold;
+  color: #303133;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #ebeef5;
+}
+.config-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px dotted #f0f0f0;
+}
+.config-row:last-child { border-bottom: none; }
+.config-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.config-key { font-size: 13px; color: #303133; font-family: monospace; }
+.config-desc { font-size: 11px; color: #909399; }
+.config-input-wrap { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.config-input { width: 280px; }
+.config-updated { font-size: 11px; color: #c0c4cc; white-space: nowrap; }
+
+/* ===== 登录页 ===== */
+.login-card {
+  width: 380px;
+  background: #fff;
+  border-radius: 8px;
+  padding: 40px 36px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+}
+
+/* ===== 退出按钮 ===== */
+.header-right { display: flex; align-items: center; gap: 8px; }
+.header-right .btn-link { background: none; border: none; cursor: pointer; font-size: 13px; padding: 4px 8px; border-radius: 4px; }
+.header-right .btn-link:hover { background: rgba(255,255,255,0.15); }
+
+/* ===== 侧边栏布局 ===== */
+html, body { height: 100%; margin: 0; }
+.app-layout { display: flex; height: 100%; }
+
+/* 侧边栏 */
+.sidebar {
+  width: 220px;
+  background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+  color: #ccc;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  overflow-y: auto;
+}
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 20px 16px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.sidebar-logo { font-size: 22px; }
+.sidebar-title { font-size: 15px; font-weight: bold; color: #fff; }
+.sidebar-nav { flex: 1; padding: 8px; }
+.sidebar-nav .nav-group { margin-top: 12px; }
+.sidebar-nav .nav-group-title {
+  display: block;
+  font-size: 11px;
+  color: #6b7280;
+  text-transform: uppercase;
+  padding: 4px 12px 6px;
+  letter-spacing: 1px;
+}
+.sidebar-nav .nav-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #9ca3af;
+  text-decoration: none;
+  transition: all 0.15s;
+  margin-bottom: 1px;
+}
+.sidebar-nav .nav-item:hover { background: rgba(255,255,255,0.08); color: #e5e7eb; }
+.sidebar-nav .nav-item.active {
+  background: linear-gradient(135deg, #409eff, #337ecc);
+  color: #fff;
+  font-weight: 500;
+}
+.sidebar-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+/* 主内容区 */
+.main-content {
+  flex: 1;
+  overflow-y: auto;
+  background: #f0f2f5;
+  padding: 20px;
+  min-height: 0;
+}
+.main-content .card {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  margin-bottom: 16px;
+}
+.main-content .card-header {
+  padding: 14px 20px;
+  font-size: 15px;
+  font-weight: bold;
+  color: #303133;
+  border-bottom: 1px solid #ebeef5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.main-content .card-body {
+  padding: 16px 20px;
+}
+
+/* 仪表盘 */
+.dashboard { max-width: 1400px; }
+.dashboard .stat-card {
+  background: #fff;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  text-align: center;
+}
+.dashboard .stat-card .stat-label { font-size: 13px; color: #909399; margin-bottom: 6px; }
+.dashboard .stat-card .stat-value { font-size: 28px; font-weight: bold; color: #303133; }
+
+.flex-1 { flex: 1; }
+
+/* ===== 分析卡片网格布局 ===== */
+.analysis-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.analysis-grid .analysis-card {
+  margin: 0;
+  min-width: 0;
+}
+@media (max-width: 768px) {
+  .analysis-grid { grid-template-columns: 1fr; }
+}
+
+/* 统计卡片网格 */
+.stat-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.stat-cards-grid .stat-card { margin: 0; }
+@media (max-width: 900px) { .stat-cards-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 600px) { .stat-cards-grid { grid-template-columns: repeat(2, 1fr); } }

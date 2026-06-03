@@ -118,4 +118,50 @@ public class LotteryUtils {
         Arrays.sort(arr);
         return Arrays.asList(arr);
     }
+
+    /**
+     * 计算红球和值（6个红球之和）
+     */
+    public static int calcSum(int r1, int r2, int r3, int r4, int r5, int r6) {
+        return r1 + r2 + r3 + r4 + r5 + r6;
+    }
+
+    /**
+     * 计算区间比
+     * 低区(1~11) : 中区(12~22) : 高区(23~33)
+     *
+     * @return 格式如 "2:2:2"
+     */
+    public static String calcZoneRatio(int r1, int r2, int r3, int r4, int r5, int r6) {
+        int low = 0, mid = 0, high = 0;
+        for (int n : new int[]{r1, r2, r3, r4, r5, r6}) {
+            if (n <= 11) low++;
+            else if (n <= 22) mid++;
+            else high++;
+        }
+        return low + ":" + mid + ":" + high;
+    }
+
+    /**
+     * 计算奇偶比（奇数个数 : 偶数个数）
+     *
+     * @return 格式如 "3:3"
+     */
+    public static String calcOddEvenRatio(int r1, int r2, int r3, int r4, int r5, int r6) {
+        int odd = 0, even = 0;
+        for (int n : new int[]{r1, r2, r3, r4, r5, r6}) {
+            if (n % 2 == 1) odd++;
+            else even++;
+        }
+        return odd + ":" + even;
+    }
+
+    /**
+     * 计算跨度（红球最大值 - 红球最小值）
+     */
+    public static int calcRange(int r1, int r2, int r3, int r4, int r5, int r6) {
+        int[] arr = {r1, r2, r3, r4, r5, r6};
+        Arrays.sort(arr);
+        return arr[5] - arr[0];
+    }
 }

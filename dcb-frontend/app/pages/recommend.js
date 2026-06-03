@@ -15,6 +15,12 @@ const Recommend = (() => {
         <div class="card-header"><span>号码推荐</span></div>
         <div class="card-body" style="flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden;">
 
+          <!-- 近N期数据分析（可折叠） -->
+          <div class="analysis-toggle" id="analysis-toggle" style="cursor:pointer;display:flex;align-items:center;gap:8px;margin-bottom:12px;padding:8px 0;font-size:14px;color:#409eff;">
+            <span id="analysis-arrow">▶</span> 查看近100/50/20/10期数据分析，辅助调整规则
+          </div>
+          <div id="d-analysis" class="analysis-grid" style="display:none;"></div>
+
           <!-- 条件输入区 -->
           <div class="filter-bar" style="flex-wrap:wrap;gap:12px;align-items:flex-start;">
             <div style="display:flex;align-items:center;gap:8px;">
@@ -57,7 +63,7 @@ const Recommend = (() => {
           <div id="result-section" style="flex:1;min-height:0;overflow:auto;display:none;">
           <div id="result-summary" style="margin-top:0;padding:12px;background:#f5f7fa;border-radius:4px;">
             <span id="result-count"></span>
-            <span id="result-truncated" style="color:#e6a23c;margin-left:12px;display:none;">结果超过10000组，仅展示前10000组</span>
+            <span id="result-truncated" style="color:#e6a23c;margin-left:12px;display:none;">结果已截断，仅展示前部分数据</span>
             <div style="margin-top:10px;display:flex;align-items:center;gap:8px;">
               <label>保存为预测（期号）</label>
               <input class="form-input" id="save-issue" type="text" placeholder="如：2024001" style="width:130px;" />
@@ -70,7 +76,7 @@ const Recommend = (() => {
             <div class="table-wrap">
               <table>
                 <thead>
-                  <tr><th style="width:60px;">序号</th><th>红球</th><th>蓝球</th></tr>
+                  <tr><th style="width:60px;">序号</th><th>号码</th></tr>
                 </thead>
                 <tbody id="result-tbody"></tbody>
               </table>
@@ -97,6 +103,24 @@ const Recommend = (() => {
     document.getElementById('btn-generate').addEventListener('click', handleGenerate)
     document.getElementById('btn-reset-form').addEventListener('click', handleReset)
     document.getElementById('btn-save-predict').addEventListener('click', handleSavePredict)
+
+    // 分析区域折叠/展开
+    var toggle = document.getElementById('analysis-toggle')
+    var analysisDiv = document.getElementById('d-analysis')
+    var arrow = document.getElementById('analysis-arrow')
+    var loaded = false
+    if (toggle) {
+      toggle.addEventListener('click', function(){
+        if (analysisDiv.style.display === 'none') {
+          analysisDiv.style.display = 'grid'
+          arrow.textContent = '▼'
+          if (!loaded) { fetchAnalysis(analysisDiv); loaded = true }
+        } else {
+          analysisDiv.style.display = 'none'
+          arrow.textContent = '▶'
+        }
+      })
+    }
   }
 
   // 读取并校验输入，返回 { ok, body, error }
@@ -196,19 +220,19 @@ const Recommend = (() => {
     if (!tbody) return
 
     if (!state.allGroups.length) {
-      tbody.innerHTML = '<tr><td colspan="3" class="text-center" style="color:#909399;">暂无符合条件的号码</td></tr>'
+      tbody.innerHTML = '<tr><td colspan="2" class="text-center" style="color:#909399;">暂无符合条件的号码</td></tr>'
     } else {
       const offset = (state.page - 1) * state.pageSize
-      tbody.innerHTML = state.allGroups.map((g, i) => `
+      const pageItems = state.allGroups.slice(offset, offset + state.pageSize)
+      tbody.innerHTML = pageItems.map((g, i) => `
         <tr>
           <td>${offset + i + 1}</td>
-          <td>${renderReds(g.red)}</td>
-          <td>${renderBlue(g.blue)}</td>
+          <td>${renderReds(g.red)} ${renderBlue(g.blue)}</td>
         </tr>`).join('')
     }
 
     // 翻页只做本地切片，不发网络请求
-    renderPagination('result-pagination', state.page, state.pageSize, Math.min(state.total, 10000), (p, s) => {
+    renderPagination('result-pagination', state.page, state.pageSize, state.total, (p, s) => {
       state.page = p
       state.pageSize = s
       renderResultPage()
@@ -246,6 +270,48 @@ const Recommend = (() => {
     state.allGroups = []
     state.page = 1
     render()
+  }
+
+  // 加载冷热号分析数据
+  function fetchAnalysis(container) {
+    container.innerHTML = '<div style="color:#909399;padding:20px;text-align:center;grid-column:1/-1;">加载中...</div>'
+    api.get('/api/lottery/analysis')
+      .then(function(res){
+        if(res.code !== 200) { container.innerHTML = '<div style="color:#f56c6c;padding:20px;text-align:center;grid-column:1/-1;">加载失败</div>'; return }
+        var d = res.data
+        var periods = [100, 50, 20, 10]
+        var pad = function(n){ return String(n).padStart(2,'0') }
+        var html = ''
+        periods.forEach(function(p){
+          var data = d['periods' + p]
+          if(!data) return
+          html += '<div class="analysis-card">'
+          html += '<div class="card-title">📊 近' + p + '期 <span class="badge">' + data.sampleSize + '期</span></div>'
+          html += '<div class="analysis-body">'
+          html += '<div class="analysis-left">'
+          html += '<div class="stat-row"><span class="stat-label">🔥 红球热号</span>'
+          data.redHot.forEach(function(n){ html += '<span class="ball ball-red">' + pad(n) + '</span>' })
+          html += '</div>'
+          html += '<div class="stat-row"><span class="stat-label">❄️ 红球冷号</span>'
+          data.redCold.forEach(function(n){ html += '<span class="ball ball-red" style="opacity:0.5;">' + pad(n) + '</span>' })
+          html += '</div>'
+          html += '<div class="stat-row"><span class="stat-label">🔥 蓝球热号</span>'
+          data.blueHot.forEach(function(n){ html += '<span class="ball ball-blue">' + pad(n) + '</span>' })
+          html += '</div>'
+          html += '<div class="stat-row"><span class="stat-label">❄️ 蓝球冷号</span>'
+          data.blueCold.forEach(function(n){ html += '<span class="ball ball-blue" style="opacity:0.5;">' + pad(n) + '</span>' })
+          html += '</div>'
+          html += '</div>'
+          html += '<div class="analysis-right">'
+          html += '<div class="stat-row"><span class="stat-label">📐 和值区间</span><span>' + (data.topSumRange || '-') + '</span></div>'
+          html += '<div class="stat-row"><span class="stat-label">📏 跨度区间</span><span>' + (data.topSpanRange || '-') + '</span></div>'
+          html += '<div class="stat-row"><span class="stat-label">📊 高频区间比</span><span>' + (data.topZoneRatio || '-') + '</span></div>'
+          html += '<div class="stat-row"><span class="stat-label">⚖️ 高频奇偶比</span><span>' + (data.topOddEven || '-') + '</span></div>'
+          html += '</div></div></div>'
+        })
+        container.innerHTML = html
+      })
+      .catch(function(){ container.innerHTML = '<div style="color:#f56c6c;padding:20px;text-align:center;grid-column:1/-1;">加载失败</div>' })
   }
 
   return { render }

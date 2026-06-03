@@ -1,14 +1,21 @@
 package com.dcb.common.service;
 
+import com.dcb.common.config.event.ConfigChangedEvent;
+import com.dcb.common.config.service.ConfigService;
 import com.dcb.lottery.dto.LotterySyncDTO;
 import com.dcb.lottery.service.LotteryService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.TaskScheduler;
+import org.springframework.scheduling.support.CronTrigger;
 import org.springframework.stereotype.Service;
 
+import javax.annotation.PostConstruct;
+import java.util.concurrent.ScheduledFuture;
+
 /**
- * 定时同步服务
+ * 定时同步服务（动态 cron，从 ConfigService 读取）
  * 双色球开奖日（二/四/日）自动同步开奖信息
  */
 @Slf4j
@@ -18,24 +25,57 @@ public class ScheduledSyncService {
 
     private final LotteryService lotteryService;
     private final AsyncCalcService asyncCalcService;
+    private final ConfigService configService;
+    private final TaskScheduler taskScheduler;
+
+    private ScheduledFuture<?> nightTask;
+    private ScheduledFuture<?> morningTask;
 
     /**
-     * 开奖日晚 21:20 首次同步（周二、四、日）
+     * 启动时注册定时任务
      */
-    @Scheduled(cron = "0 20 21 ? * 3,5,1")
-    public void syncOnDrawNight() {
-        log.info("=== 定时任务：开奖日晚间同步 ===");
-        syncLatestIssue();
+    @PostConstruct
+    public void init() {
+        scheduleNight();
+        scheduleMorning();
     }
 
     /**
-     * 开奖次日早 08:00 二次同步（周三、五、一）
-     * 补全奖金等开奖后统计的数据
+     * 重新调度所有定时任务（配置修改后调用）
      */
-    @Scheduled(cron = "0 0 8 ? * 4,6,2")
-    public void syncOnNextMorning() {
-        log.info("=== 定时任务：开奖次日早晨同步 ===");
-        syncLatestIssue();
+    public void reschedule() {
+        cancelAll();
+        scheduleNight();
+        scheduleMorning();
+        log.info("定时任务已重新调度");
+    }
+
+    /** 监听配置变更，SCHEDULE 组变更时自动重调度 */
+    @EventListener
+    public void onConfigChanged(ConfigChangedEvent event) {
+        if (event.getConfigKey().startsWith("scheduled.")) {
+            reschedule();
+        }
+    }
+
+    /** 开奖日晚间同步 */
+    private void scheduleNight() {
+        String cron = configService.getCron("scheduled.sync.night");
+        nightTask = taskScheduler.schedule(this::syncLatestIssue, new CronTrigger(cron));
+        log.info("开奖日晚间同步任务已注册，cron：{}", cron);
+    }
+
+    /** 开奖次日早晨同步 */
+    private void scheduleMorning() {
+        String cron = configService.getCron("scheduled.sync.morning");
+        morningTask = taskScheduler.schedule(this::syncLatestIssue, new CronTrigger(cron));
+        log.info("开奖次日早晨同步任务已注册，cron：{}", cron);
+    }
+
+    /** 取消所有定时任务 */
+    private void cancelAll() {
+        if (nightTask != null) { nightTask.cancel(false); nightTask = null; }
+        if (morningTask != null) { morningTask.cancel(false); morningTask = null; }
     }
 
     /**
@@ -44,14 +84,12 @@ public class ScheduledSyncService {
      */
     private void syncLatestIssue() {
         try {
-            // 从期号建议接口获取最新期号（倒序排列）
             java.util.List<String> issues = lotteryService.suggestIssues("");
             if (issues.isEmpty()) {
                 log.info("数据库中暂无开奖记录，跳过定时同步");
                 return;
             }
 
-            // 最新期号 +1 = 预期新期号
             String latestIssue = issues.get(0);
             String nextIssue;
             try {
@@ -64,7 +102,6 @@ public class ScheduledSyncService {
 
             log.info("定时同步：尝试同步期号 {}", nextIssue);
 
-            // 调用同步
             LotterySyncDTO dto = new LotterySyncDTO(nextIssue);
             java.util.Map<String, Object> result = lotteryService.sync(dto);
 
@@ -72,12 +109,10 @@ public class ScheduledSyncService {
             log.info("定时同步完成，期号：{}，{}", nextIssue,
                     newRecord ? "新增记录" : "已存在（仅更新）");
 
-            // 触发异步计算
             asyncCalcService.asyncCalcPurchase(nextIssue);
             asyncCalcService.asyncCalcPredict(nextIssue);
 
         } catch (Exception e) {
-            // 外部 API 无数据时属于正常情况（尚未开奖），仅记录不抛异常
             log.info("定时同步：外部API暂无期号数据，跳过（{}）", e.getMessage());
         }
     }

@@ -11,6 +11,7 @@ import com.dcb.predict.service.PredictService;
 import com.dcb.purchase.entity.PurchaseRecord;
 import com.dcb.purchase.mapper.PurchaseRecordMapper;
 import com.dcb.purchase.service.PurchaseService;
+import com.dcb.common.config.service.ConfigService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.annotation.Async;
@@ -32,11 +33,6 @@ import java.util.concurrent.Executor;
 @Service
 public class AsyncCalcService {
 
-    /** 每个分片处理的记录数 */
-    private static final int SHARD_SIZE = 1000;
-    /** 分片失败最大重试次数 */
-    private static final int MAX_RETRIES = 3;
-
     private final PurchaseRecordMapper purchaseRecordMapper;
     private final PredictRecordMapper predictRecordMapper;
     private final LotteryService lotteryService;
@@ -45,6 +41,7 @@ public class AsyncCalcService {
     private final CalcErrorLogMapper calcErrorLogMapper;
     private final PlatformTransactionManager transactionManager;
     private final Executor executor;
+    private final ConfigService configService;
 
     public AsyncCalcService(
             PurchaseRecordMapper purchaseRecordMapper,
@@ -54,7 +51,8 @@ public class AsyncCalcService {
             PredictService predictService,
             CalcErrorLogMapper calcErrorLogMapper,
             PlatformTransactionManager transactionManager,
-            Executor executor) {
+            Executor executor,
+            ConfigService configService) {
         this.purchaseRecordMapper = purchaseRecordMapper;
         this.predictRecordMapper = predictRecordMapper;
         this.lotteryService = lotteryService;
@@ -63,6 +61,7 @@ public class AsyncCalcService {
         this.calcErrorLogMapper = calcErrorLogMapper;
         this.transactionManager = transactionManager;
         this.executor = executor;
+        this.configService = configService;
     }
 
     /**
@@ -162,7 +161,7 @@ public class AsyncCalcService {
             return;
         }
 
-        int totalShards = (int) ((maxId - minId) / SHARD_SIZE) + 1;
+        int totalShards = (int) ((maxId - minId) / configService.getInt("async.shard.size")) + 1;
         log.info("开始异步{}计算{}记录，期号：{}，ID范围：[{}, {})，分片数：{}",
                 recalc ? "全量" : "", calcType, issue, minId, maxId, totalShards);
 
@@ -170,8 +169,8 @@ public class AsyncCalcService {
         List<CompletableFuture<Void>> futures = new ArrayList<>();
 
         for (int i = 0; i < totalShards; i++) {
-            final long start = minId + (long) i * SHARD_SIZE;
-            final long end = start + SHARD_SIZE;
+            final long start = minId + (long) i * configService.getInt("async.shard.size");
+            final long end = start + configService.getInt("async.shard.size");
             final int shardIndex = i;
 
             CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
@@ -194,7 +193,7 @@ public class AsyncCalcService {
     private void executeShardWithRetry(String issue, String calcType, long idStart, long idEnd,
                                         int shardIndex, int totalShards, LotteryResult lottery, boolean recalc) {
         Exception lastException = null;
-        for (int retry = 0; retry <= MAX_RETRIES; retry++) {
+        for (int retry = 0; retry <= configService.getInt("async.max.retries"); retry++) {
             try {
                 TransactionTemplate tx = new TransactionTemplate(transactionManager);
                 tx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
@@ -214,11 +213,11 @@ public class AsyncCalcService {
                 return; // 成功，退出
             } catch (Exception e) {
                 lastException = e;
-                if (retry < MAX_RETRIES) {
+                if (retry < configService.getInt("async.max.retries")) {
                     long delay = (long) Math.pow(2, retry) * 1000L; // 1s, 2s, 4s
                     log.warn("分片 [{}/{}] 失败，区间：[{}, {})，{}ms后重试({}/{})：{}",
                             shardIndex + 1, totalShards, idStart, idEnd,
-                            delay, retry + 1, MAX_RETRIES, e.getMessage());
+                            delay, retry + 1, configService.getInt("async.max.retries"), e.getMessage());
                     try {
                         Thread.sleep(delay);
                     } catch (InterruptedException ie) {
@@ -241,7 +240,7 @@ public class AsyncCalcService {
                 .idEnd(idEnd)
                 .errorMsg(errorMsg.length() > 2000 ? errorMsg.substring(0, 2000) : errorMsg)
                 .status(0)
-                .retryCount(MAX_RETRIES)
+                .retryCount(configService.getInt("async.max.retries"))
                 .build();
         calcErrorLogMapper.insert(errorLog);
     }

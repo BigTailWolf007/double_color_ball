@@ -18,11 +18,16 @@
         <result column="fhit_blue"    property="hitBlue"/>
         <result column="fprize_level" property="prizeLevel"/>
         <result column="fcreated_at"  property="createdAt"/>
+        <result column="fsum_val"        property="sumVal"/>
+        <result column="fzone_ratio"     property="zoneRatio"/>
+        <result column="fodd_even_ratio" property="oddEvenRatio"/>
+        <result column="frange_val"      property="rangeVal"/>
     </resultMap>
 
     <select id="selectPageByIssue" resultMap="BaseResultMap">
         SELECT fid, fissue, fred1, fred2, fred3, fred4, fred5, fred6, fblue, fball_key,
-               fhit_red, fhit_blue, fprize_level, fcreated_at
+               fhit_red, fhit_blue, fprize_level, fcreated_at,
+               fsum_val, fzone_ratio, fodd_even_ratio, frange_val
         FROM t_predict_record
         <where>
             <if test="issue != null and issue != ''">
@@ -50,7 +55,8 @@
 
     <select id="selectByIssues" resultMap="BaseResultMap">
         SELECT fid, fissue, fred1, fred2, fred3, fred4, fred5, fred6, fblue, fball_key,
-               fhit_red, fhit_blue, fprize_level, fcreated_at
+               fhit_red, fhit_blue, fprize_level, fcreated_at,
+               fsum_val, fzone_ratio, fodd_even_ratio, frange_val
         FROM t_predict_record
         WHERE fissue IN
         <foreach collection="issues" item="i" open="(" separator="," close=")">
@@ -68,11 +74,13 @@
     <insert id="batchInsert" parameterType="java.util.List" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO t_predict_record
             (fissue, fred1, fred2, fred3, fred4, fred5, fred6, fblue, fball_key,
-             fhit_red, fhit_blue, fprize_level)
+             fhit_red, fhit_blue, fprize_level,
+             fsum_val, fzone_ratio, fodd_even_ratio, frange_val)
         VALUES
         <foreach collection="list" item="r" separator=",">
             (#{r.issue}, #{r.red1}, #{r.red2}, #{r.red3}, #{r.red4}, #{r.red5}, #{r.red6},
-             #{r.blue}, #{r.ballKey}, #{r.hitRed}, #{r.hitBlue}, #{r.prizeLevel})
+             #{r.blue}, #{r.ballKey}, #{r.hitRed}, #{r.hitBlue}, #{r.prizeLevel},
+             #{r.sumVal}, #{r.zoneRatio}, #{r.oddEvenRatio}, #{r.rangeVal})
         </foreach>
     </insert>
 

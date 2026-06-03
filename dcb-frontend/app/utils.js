@@ -1,9 +1,11 @@
 // ===== Toast 消息提示 =====
 function toast(msg, type = 'success') {
+  var container = document.getElementById('toast-container')
+  if (!container) return
   const el = document.createElement('div')
   el.className = `toast toast-${type}`
   el.textContent = msg
-  document.getElementById('toast-container').appendChild(el)
+  container.appendChild(el)
   setTimeout(() => el.remove(), 3000)
 }
 

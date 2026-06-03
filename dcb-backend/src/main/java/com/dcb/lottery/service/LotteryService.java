@@ -10,10 +10,13 @@ import com.dcb.lottery.dto.LotterySyncDTO;
 import com.dcb.lottery.entity.LotteryResult;
 import com.dcb.lottery.mapper.LotteryResultMapper;
 import com.dcb.lottery.vo.LotteryResultVO;
+import com.dcb.common.config.service.ConfigService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
@@ -41,17 +44,14 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class LotteryService {
 
-    /** 外部彩票 API 地址 */
-    private static final String LOTTERY_API_URL =
-            "https://api2.tanshuapi.com/api/caipiao/v1/query?key=41169186260d56cdeda190c0f99b8c9f&caipiaoid=11&issueno=";
-
-    /** API 调用超时时间（毫秒） */
-    private static final int API_TIMEOUT = 10000;
+    /** 外部彩票 API 地址（从配置中读取） */
+    private static final String LOTTERY_API_PATH = "/api/caipiao/v1/query";
 
     /** 金额格式化器 */
     private static final NumberFormat MONEY_FORMAT = NumberFormat.getIntegerInstance(Locale.CHINA);
 
     private final LotteryResultMapper lotteryResultMapper;
+    private final ConfigService configService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     /**
@@ -61,15 +61,18 @@ public class LotteryService {
      * @param dto 同步请求（期号）
      * @return 同步结果信息
      */
+    @CacheEvict(cacheNames = "lotteryAnalysis", allEntries = true)
     public Map<String, Object> sync(LotterySyncDTO dto) {
         String issue = dto.getIssue();
         log.info("开始同步开奖信息，期号：{}", issue);
 
-        // 1. 调用外部 API
+        // 1. 调用外部 API（URL 和 Key 从配置读取）
+        String apiUrl = configService.getString("lottery.api.url") + "?key="
+                + configService.getString("lottery.api.key") + "&caipiaoid=11&issueno=";
         String responseBody;
         try {
             RestTemplate restTemplate = createRestTemplate();
-            responseBody = restTemplate.getForObject(LOTTERY_API_URL + issue, String.class);
+            responseBody = restTemplate.getForObject(apiUrl + issue, String.class);
         } catch (Exception e) {
             log.error("调用外部彩票API失败，期号：{}，错误：{}", issue, e.getMessage(), e);
             throw new BizException("调用外部彩票API失败：" + e.getMessage());
@@ -174,6 +177,10 @@ public class LotteryService {
                     .deadline(deadline)
                     .saleAmount(saleAmount)
                     .poolAmount(poolAmount)
+                    .sumVal(LotteryUtils.calcSum(r1, r2, r3, r4, r5, r6))
+                    .zoneRatio(LotteryUtils.calcZoneRatio(r1, r2, r3, r4, r5, r6))
+                    .oddEvenRatio(LotteryUtils.calcOddEvenRatio(r1, r2, r3, r4, r5, r6))
+                    .rangeVal(LotteryUtils.calcRange(r1, r2, r3, r4, r5, r6))
                     .build();
             try {
                 lotteryResultMapper.insert(entity);
@@ -195,8 +202,9 @@ public class LotteryService {
      */
     private RestTemplate createRestTemplate() {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(API_TIMEOUT);
-        factory.setReadTimeout(API_TIMEOUT);
+        int timeout = configService.getInt("lottery.api.timeout");
+        factory.setConnectTimeout(timeout);
+        factory.setReadTimeout(timeout);
         return new RestTemplate(factory);
     }
 
@@ -330,12 +338,17 @@ public class LotteryService {
                 .red1(r1).red2(r2).red3(r3).red4(r4).red5(r5).red6(r6)
                 .blue(blue)
                 .ballKey(LotteryUtils.buildBallKey(issue, r1, r2, r3, r4, r5, r6, blue))
+                .sumVal(LotteryUtils.calcSum(r1, r2, r3, r4, r5, r6))
+                .zoneRatio(LotteryUtils.calcZoneRatio(r1, r2, r3, r4, r5, r6))
+                .oddEvenRatio(LotteryUtils.calcOddEvenRatio(r1, r2, r3, r4, r5, r6))
+                .rangeVal(LotteryUtils.calcRange(r1, r2, r3, r4, r5, r6))
                 .build();
     }
 
     /**
      * 手动录入开奖号码
      */
+    @CacheEvict(cacheNames = "lotteryAnalysis", allEntries = true)
     public void add(LotteryAddDTO dto) {
         LotteryUtils.validateRed(Arrays.asList(
                 dto.getRed1(), dto.getRed2(), dto.getRed3(),
@@ -349,6 +362,14 @@ public class LotteryService {
                 .red4(dto.getRed4()).red5(dto.getRed5()).red6(dto.getRed6())
                 .blue(dto.getBlue())
                 .ballKey(LotteryUtils.buildBallKey(dto))
+                .sumVal(LotteryUtils.calcSum(dto.getRed1(), dto.getRed2(), dto.getRed3(),
+                        dto.getRed4(), dto.getRed5(), dto.getRed6()))
+                .zoneRatio(LotteryUtils.calcZoneRatio(dto.getRed1(), dto.getRed2(), dto.getRed3(),
+                        dto.getRed4(), dto.getRed5(), dto.getRed6()))
+                .oddEvenRatio(LotteryUtils.calcOddEvenRatio(dto.getRed1(), dto.getRed2(), dto.getRed3(),
+                        dto.getRed4(), dto.getRed5(), dto.getRed6()))
+                .rangeVal(LotteryUtils.calcRange(dto.getRed1(), dto.getRed2(), dto.getRed3(),
+                        dto.getRed4(), dto.getRed5(), dto.getRed6()))
                 .build();
         try {
             lotteryResultMapper.insert(entity);
@@ -413,9 +434,11 @@ public class LotteryService {
 
     /**
      * 冷热号分析：统计最近 10/20/50/100 期红球和蓝球的出现频率
+     * 结果缓存，新增/同步开奖号码后自动失效
      *
      * @return 各期数的热号（出现最多前5）和冷号（出现最少前5）
      */
+    @Cacheable(cacheNames = "lotteryAnalysis")
     public Map<String, Object> analysis() {
         // 查询最近 100 期开奖号码（倒序）
         List<LotteryResult> allResults = lotteryResultMapper.selectList(
@@ -432,18 +455,66 @@ public class LotteryService {
     }
 
     /**
-     * 计算指定期数内的冷热号
+     * 计算指定期数内的冷热号及分析参数
      */
     private Map<String, Object> calcHotCold(List<LotteryResult> results, int periods) {
         int limit = Math.min(periods, results.size());
         int[] redFreq = new int[34];  // 索引 1-33
         int[] blueFreq = new int[17]; // 索引 1-16
 
+        // 和值区间计数：21-40,41-60,61-80,81-100,101-120,121-140,141-160,161-183
+        int[] sumRangeCount = new int[8];
+        String[] sumRangeLabels = {"21-40", "41-60", "61-80", "81-100", "101-120", "121-140", "141-160", "161-183"};
+
+        // 跨度区间计数：5-10,11-16,17-22,23-28,29-32
+        int[] spanRangeCount = new int[5];
+        String[] spanRangeLabels = {"5-10", "11-16", "17-22", "23-28", "29-32"};
+
+        // 区间比频率
+        java.util.Map<String, Integer> zoneRatioFreq = new java.util.LinkedHashMap<>();
+        // 奇偶比频率
+        java.util.Map<String, Integer> oddEvenFreq = new java.util.LinkedHashMap<>();
+
         for (int i = 0; i < limit; i++) {
             LotteryResult r = results.get(i);
             redFreq[r.getRed1()]++; redFreq[r.getRed2()]++; redFreq[r.getRed3()]++;
             redFreq[r.getRed4()]++; redFreq[r.getRed5()]++; redFreq[r.getRed6()]++;
             blueFreq[r.getBlue()]++;
+
+            // 和值：优先用已有字段，否则实时计算
+            int sum = r.getSumVal() != null ? r.getSumVal()
+                    : LotteryUtils.calcSum(r.getRed1(), r.getRed2(), r.getRed3(),
+                            r.getRed4(), r.getRed5(), r.getRed6());
+            if (sum <= 40) sumRangeCount[0]++;
+            else if (sum <= 60) sumRangeCount[1]++;
+            else if (sum <= 80) sumRangeCount[2]++;
+            else if (sum <= 100) sumRangeCount[3]++;
+            else if (sum <= 120) sumRangeCount[4]++;
+            else if (sum <= 140) sumRangeCount[5]++;
+            else if (sum <= 160) sumRangeCount[6]++;
+            else sumRangeCount[7]++;
+
+            // 跨度
+            int span = r.getRangeVal() != null ? r.getRangeVal()
+                    : LotteryUtils.calcRange(r.getRed1(), r.getRed2(), r.getRed3(),
+                            r.getRed4(), r.getRed5(), r.getRed6());
+            if (span <= 10) spanRangeCount[0]++;
+            else if (span <= 16) spanRangeCount[1]++;
+            else if (span <= 22) spanRangeCount[2]++;
+            else if (span <= 28) spanRangeCount[3]++;
+            else spanRangeCount[4]++;
+
+            // 区间比
+            String zr = r.getZoneRatio() != null ? r.getZoneRatio()
+                    : LotteryUtils.calcZoneRatio(r.getRed1(), r.getRed2(), r.getRed3(),
+                            r.getRed4(), r.getRed5(), r.getRed6());
+            zoneRatioFreq.merge(zr, 1, Integer::sum);
+
+            // 奇偶比
+            String oe = r.getOddEvenRatio() != null ? r.getOddEvenRatio()
+                    : LotteryUtils.calcOddEvenRatio(r.getRed1(), r.getRed2(), r.getRed3(),
+                            r.getRed4(), r.getRed5(), r.getRed6());
+            oddEvenFreq.merge(oe, 1, Integer::sum);
         }
 
         // 红球排序：按频率降序
@@ -472,12 +543,46 @@ public class LotteryService {
         for (int i = redList.size() - 1; i >= Math.max(0, redList.size() - 5); i--) redCold.add(redList.get(i)[0]);
         for (int i = blueList.size() - 1; i >= Math.max(0, blueList.size() - 5); i--) blueCold.add(blueList.get(i)[0]);
 
+        // 找出最高频的和值区间
+        int maxSumIdx = 0;
+        for (int i = 1; i < sumRangeCount.length; i++) {
+            if (sumRangeCount[i] > sumRangeCount[maxSumIdx]) maxSumIdx = i;
+        }
+        String topSumRange = sumRangeCount[maxSumIdx] > 0
+                ? sumRangeLabels[maxSumIdx] + "（" + sumRangeCount[maxSumIdx] + "次）" : "-";
+
+        // 找出最高频的跨度区间
+        int maxSpanIdx = 0;
+        for (int i = 1; i < spanRangeCount.length; i++) {
+            if (spanRangeCount[i] > spanRangeCount[maxSpanIdx]) maxSpanIdx = i;
+        }
+        String topSpanRange = spanRangeCount[maxSpanIdx] > 0
+                ? spanRangeLabels[maxSpanIdx] + "（" + spanRangeCount[maxSpanIdx] + "次）" : "-";
+
+        // 最高频区间比（取前3）
+        String topZoneRatio = zoneRatioFreq.entrySet().stream()
+                .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
+                .limit(1)
+                .map(e -> e.getKey() + "（" + e.getValue() + "次）")
+                .findFirst().orElse("-");
+
+        // 最高频奇偶比（取前3）
+        String topOddEven = oddEvenFreq.entrySet().stream()
+                .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
+                .limit(1)
+                .map(e -> e.getKey() + "（" + e.getValue() + "次）")
+                .findFirst().orElse("-");
+
         Map<String, Object> data = new HashMap<>();
         data.put("redHot", redHot);
         data.put("redCold", redCold);
         data.put("blueHot", blueHot);
         data.put("blueCold", blueCold);
         data.put("sampleSize", limit);
+        data.put("topSumRange", topSumRange);
+        data.put("topSpanRange", topSpanRange);
+        data.put("topZoneRatio", topZoneRatio);
+        data.put("topOddEven", topOddEven);
         return data;
     }
 
@@ -494,6 +599,10 @@ public class LotteryService {
                 .saleAmount(r.getSaleAmount() != null ? MONEY_FORMAT.format(r.getSaleAmount()) : null)
                 .poolAmount(r.getPoolAmount() != null ? MONEY_FORMAT.format(r.getPoolAmount()) : null)
                 .createdAt(r.getCreatedAt())
+                .sumVal(r.getSumVal())
+                .zoneRatio(r.getZoneRatio())
+                .oddEvenRatio(r.getOddEvenRatio())
+                .rangeVal(r.getRangeVal())
                 .build();
     }
 }

@@ -29,11 +29,12 @@ const PredictList = (() => {
                 <tr>
                   <th style="width:36px;"><input type="checkbox" id="check-all" title="全选/取消" /></th>
                   <th>目标期号</th><th>号码</th>
+                  <th class="text-center">和值</th><th class="text-center">跨度</th><th class="text-center">区间比</th><th class="text-center">奇偶比</th>
                   <th class="text-center">命中红球</th><th class="text-center">命中蓝球</th>
                   <th class="text-center">命中等级</th><th>生成时间</th><th>操作</th>
                 </tr>
               </thead>
-              <tbody id="table-body"><tr><td colspan="8" class="text-center" style="color:#909399;">加载中...</td></tr></tbody>
+              <tbody id="table-body"><tr><td colspan="12" class="text-center" style="color:#909399;">加载中...</td></tr></tbody>
             </table>
           </div>
           <div class="pagination" id="pagination" style="margin-top:12px;"></div>
@@ -80,7 +81,7 @@ const PredictList = (() => {
   async function fetchList() {
     const tbody = document.getElementById('table-body')
     if (!tbody) return
-    tbody.innerHTML = '<tr><td colspan="8" class="text-center" style="color:#909399;">加载中...</td></tr>'
+    tbody.innerHTML = '<tr><td colspan="12" class="text-center" style="color:#909399;">加载中...</td></tr>'
     try {
       const params = { page: state.page, size: state.size }
       if (state.issue) params.issue = state.issue
@@ -89,7 +90,7 @@ const PredictList = (() => {
       state.total = res.data.total || 0
 
       if (!list.length) {
-        tbody.innerHTML = '<tr><td colspan="8" class="text-center" style="color:#909399;">暂无数据</td></tr>'
+        tbody.innerHTML = '<tr><td colspan="12" class="text-center" style="color:#909399;">暂无数据</td></tr>'
       } else {
         tbody.innerHTML = list.map(row => {
           let hitRedHtml, hitBlueHtml
@@ -108,6 +109,10 @@ const PredictList = (() => {
             <td style="text-align:center;"><input type="checkbox" class="row-check" data-id="${row.id}" ${checked} /></td>
             <td>${row.issue}</td>
             <td>${renderBalls(row.reds, row.blue, row.drawReds, row.drawBlue)}</td>
+            <td class="text-center">${row.sumVal ?? '-'}</td>
+            <td class="text-center">${row.rangeVal ?? '-'}</td>
+            <td class="text-center">${row.zoneRatio ?? '-'}</td>
+            <td class="text-center">${row.oddEvenRatio ?? '-'}</td>
             <td class="text-center">${hitRedHtml}</td>
             <td class="text-center">${hitBlueHtml}</td>
             <td class="text-center">${renderPrizeLevel(row.prizeLevel, row.prizeLevelDesc)}</td>
@@ -136,7 +141,7 @@ const PredictList = (() => {
         state.page = p; state.size = s; fetchList()
       })
     } catch (e) {
-      if (tbody) tbody.innerHTML = '<tr><td colspan="8" class="text-center" style="color:#f56c6c;">加载失败</td></tr>'
+      if (tbody) tbody.innerHTML = '<tr><td colspan="12" class="text-center" style="color:#f56c6c;">加载失败</td></tr>'
     }
   }
 

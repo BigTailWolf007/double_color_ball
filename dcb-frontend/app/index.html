@@ -7,33 +7,40 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <!-- 顶部系统名称 -->
-  <header class="app-header">
-    <span class="app-title">双色球分析系统</span>
-  </header>
+  <!-- 侧边栏 + 主内容区布局 -->
+  <div class="app-layout">
+    <!-- 侧边栏 -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-brand">
+        <span class="sidebar-logo">🎱</span>
+        <span class="sidebar-title">双色球分析系统</span>
+      </div>
+      <nav class="sidebar-nav" id="sidebar-nav">
+        <a class="nav-item active" data-page="dashboard">📊 仪表盘</a>
+        <div class="nav-group">
+          <span class="nav-group-title">业务管理</span>
+          <a class="nav-item" data-page="lottery-list">🎯 开奖号码</a>
+          <a class="nav-item" data-page="purchase-list">💰 购买记录</a>
+          <a class="nav-item" data-page="predict-list">🔮 预测号码</a>
+          <a class="nav-item" data-page="recommend">🧩 规则推荐</a>
+        </div>
+        <div class="nav-group">
+          <span class="nav-group-title">系统管理</span>
+          <a class="nav-item" data-page="sys-config">⚙️ 系统配置</a>
+          <a class="nav-item" data-page="user-manage">👥 用户管理</a>
+          <a class="nav-item" data-page="user-activity">📈 活跃度</a>
+          <a class="nav-item" data-page="order-manage">📦 订单管理</a>
+        </div>
+        <a class="nav-item" data-page="calc-error-log">⚠️ 错误日志</a>
+      </nav>
+      <div class="sidebar-footer">
+        <span id="sidebar-nickname">管理员</span>
+        <button class="btn btn-link" id="sidebar-logout" style="color:#f56c6c;font-size:12px;">退出</button>
+      </div>
+    </aside>
 
-  <!-- 数据卡片区 -->
-  <section class="app-cards" id="app-cards">
-    <div class="analysis-row" id="analysis-row">
-      <span style="color:#909399;">📊 冷热号分析加载中...</span>
-    </div>
-  </section>
-
-  <!-- Tab 容器 -->
-  <div class="app-tabs-container">
-    <!-- 主Tab -->
-    <nav class="main-tabs" id="main-tabs">
-      <button class="main-tab" data-main="lottery">开奖号码</button>
-      <button class="main-tab" data-main="purchase">购买记录</button>
-      <button class="main-tab" data-main="predict">预测号码</button>
-      <button class="main-tab" data-main="recommend">规则推荐</button>
-    </nav>
-
-    <!-- 子Tab -->
-    <nav class="sub-tabs" id="sub-tabs"></nav>
-
-    <!-- 内容区 -->
-    <main class="tab-content" id="main-content"></main>
+    <!-- 主内容区 -->
+    <main class="main-content" id="main-content"></main>
   </div>
 
   <!-- 全局弹窗 -->
@@ -87,43 +94,65 @@
   <script src="pages/purchase-add.js"></script>
   <script src="pages/predict-list.js"></script>
   <script src="pages/recommend.js"></script>
+  <script src="pages/dashboard.js"></script>
+  <script src="pages/sys-config.js"></script>
+  <script src="pages/user-manage.js"></script>
+  <script src="pages/user-activity.js"></script>
+  <script src="pages/order-manage.js"></script>
+  <script src="pages/login.js"></script>
   <script src="router.js"></script>
   <script>
-    // 冷热号分析（页面加载时异步请求，不影响其他数据加载）
+    // 登录检查
     (function(){
-      var row = document.getElementById('analysis-row');
-      if(!row) return;
-      fetch(BASE_URL + '/api/lottery/analysis')
-        .then(function(r){ return r.json() })
-        .then(function(res){
-          if(res.code !== 200) return;
-          var d = res.data;
-          var periods = [100, 50, 20, 10];
-          var pad = function(n){ return String(n).padStart(2,'0') };
-          var html = '';
-          periods.forEach(function(p){
-            var data = d['periods' + p];
-            if(!data) return;
-            html += '<div class="analysis-card">';
-            html += '<div class="card-title">📊 近' + p + '期冷热号 <span class="badge">' + data.sampleSize + '期样本</span></div>';
-            html += '<div class="ball-row"><span class="label">🔴热号</span>';
-            data.redHot.forEach(function(n){ html += '<span class="ball ball-red">' + pad(n) + '</span>' });
-            html += '</div>';
-            html += '<div class="ball-row"><span class="label">🔴冷号</span>';
-            data.redCold.forEach(function(n){ html += '<span class="ball ball-red" style="opacity:0.5;">' + pad(n) + '</span>' });
-            html += '</div>';
-            html += '<div class="ball-row"><span class="label">🔵热号</span>';
-            data.blueHot.forEach(function(n){ html += '<span class="ball ball-blue">' + pad(n) + '</span>' });
-            html += '</div>';
-            html += '<div class="ball-row"><span class="label">🔵冷号</span>';
-            data.blueCold.forEach(function(n){ html += '<span class="ball ball-blue" style="opacity:0.5;">' + pad(n) + '</span>' });
-            html += '</div>';
-            html += '</div>';
-          });
-          row.innerHTML = html;
+      if (!localStorage.getItem('token')) {
+        LoginPage.render()
+        return
+      }
+      // 显示侧边栏用户信息
+      try {
+        var user = JSON.parse(localStorage.getItem('user') || '{}')
+        var nickEl = document.getElementById('sidebar-nickname')
+        if (nickEl) nickEl.textContent = user.nickname || '管理员'
+      } catch(e) {}
+      // 退出按钮
+      var logoutBtn = document.getElementById('sidebar-logout')
+      if (logoutBtn) {
+        logoutBtn.addEventListener('click', function(){
+          localStorage.removeItem('token')
+          localStorage.removeItem('user')
+          location.reload()
         })
-        .catch(function(){ row.innerHTML = '<span style="color:#f56c6c;">分析数据加载失败</span>' });
-    })();
+      }
+      // 侧边栏导航
+      var nav = document.getElementById('sidebar-nav')
+      if (nav) {
+        nav.addEventListener('click', function(e){
+          var item = e.target.closest('.nav-item')
+          if (!item) return
+          e.preventDefault()
+          var page = item.dataset.page
+          if (page) {
+            // 高亮当前菜单项
+            nav.querySelectorAll('.nav-item').forEach(function(el){ el.classList.remove('active') })
+            item.classList.add('active')
+            // 更新 URL hash
+            location.hash = page
+            // 渲染页面
+            var fn = PAGES[page]
+            if (fn) { fn() } else { Dashboard.render() }
+          }
+        })
+      }
+      // 初始路由
+      var initPage = location.hash.replace('#', '') || 'dashboard'
+      var activeItem = nav && nav.querySelector('[data-page="' + initPage + '"]')
+      if (activeItem) {
+        nav.querySelectorAll('.nav-item').forEach(function(el){ el.classList.remove('active') })
+        activeItem.classList.add('active')
+      }
+      var fn = PAGES[initPage]
+      if (fn) { fn() } else { Dashboard.render() }
+    })()
   </script>
 </body>
 </html>

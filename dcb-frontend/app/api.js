@@ -8,6 +8,12 @@ async function request(method, path, options = {}) {
     ...options
   }
 
+  // 自动附加 JWT Token
+  const token = localStorage.getItem('token')
+  if (token) {
+    config.headers['Authorization'] = 'Bearer ' + token
+  }
+
   if (options.params) {
     const qs = new URLSearchParams()
     Object.entries(options.params).forEach(([k, v]) => {
@@ -23,6 +29,16 @@ async function request(method, path, options = {}) {
   }
 
   const res = await fetch(config.url || url, config)
+
+  // 401 自动跳转登录页
+  if (res.status === 401) {
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
+    if (document.getElementById('login-username')) return // 已在登录页
+    location.reload()
+    return
+  }
+
   const data = await res.json()
 
   if (data.code !== 200) {

@@ -29,10 +29,10 @@ const LotteryList = (() => {
             <table>
               <thead>
                 <tr>
-                  <th style="width:100px;">期号</th><th style="width:110px;">开奖日期</th><th style="width:160px;">号码</th><th style="width:170px;">奖金详情</th><th style="width:110px;">销售额</th><th style="width:110px;">奖池金额</th><th style="width:110px;">录入时间</th><th style="width:80px;">操作</th>
+                  <th style="width:100px;">期号</th><th style="width:100px;">开奖日期</th><th style="width:130px;">号码</th><th style="width:150px;">奖金详情</th><th class="text-center" style="width:55px;">和值</th><th class="text-center" style="width:55px;">跨度</th><th class="text-center" style="width:65px;">区间比</th><th class="text-center" style="width:65px;">奇偶比</th><th style="width:85px;">销售额</th><th style="width:85px;">奖池金额</th><th style="width:85px;">录入时间</th><th style="width:70px;">操作</th>
                 </tr>
               </thead>
-              <tbody id="table-body"><tr><td colspan="8" class="text-center" style="color:#909399;">加载中...</td></tr></tbody>
+              <tbody id="table-body"><tr><td colspan="12" class="text-center" style="color:#909399;">加载中...</td></tr></tbody>
             </table>
           </div>
           <div class="pagination" id="pagination"></div>
@@ -64,7 +64,7 @@ const LotteryList = (() => {
   async function fetchList() {
     const tbody = document.getElementById('table-body')
     if (!tbody) return
-    tbody.innerHTML = '<tr><td colspan="8" class="text-center" style="color:#909399;">加载中...</td></tr>'
+    tbody.innerHTML = '<tr><td colspan="12" class="text-center" style="color:#909399;">加载中...</td></tr>'
     try {
       const params = { page: state.page, size: state.size }
       if (state.issue) params.issue = state.issue
@@ -75,7 +75,7 @@ const LotteryList = (() => {
       state.total = res.data.total || 0
 
       if (!list.length) {
-        tbody.innerHTML = '<tr><td colspan="8" class="text-center" style="color:#909399;">暂无数据</td></tr>'
+        tbody.innerHTML = '<tr><td colspan="12" class="text-center" style="color:#909399;">暂无数据</td></tr>'
       } else {
         tbody.innerHTML = list.map(row => {
           const prizeHtml = renderPrizeText(row.prizeText)
@@ -85,6 +85,10 @@ const LotteryList = (() => {
             <td>${row.drawDate || '-'}</td>
             <td>${renderReds(row.reds)}${renderBlue(row.blue)}</td>
             <td style="font-size:12px;">${prizeHtml}</td>
+            <td class="text-center">${row.sumVal ?? '-'}</td>
+            <td class="text-center">${row.rangeVal ?? '-'}</td>
+            <td class="text-center">${row.zoneRatio ?? '-'}</td>
+            <td class="text-center">${row.oddEvenRatio ?? '-'}</td>
             <td style="text-align:right;">${row.saleAmount ? '¥' + row.saleAmount : '-'}</td>
             <td style="text-align:right;">${row.poolAmount ? '¥' + row.poolAmount : '-'}</td>
             <td>${row.createdAt || '-'}</td>
@@ -101,7 +105,7 @@ const LotteryList = (() => {
         state.page = p; state.size = s; fetchList()
       })
     } catch (e) {
-      if (tbody) tbody.innerHTML = '<tr><td colspan="8" class="text-center" style="color:#f56c6c;">加载失败</td></tr>'
+      if (tbody) tbody.innerHTML = '<tr><td colspan="12" class="text-center" style="color:#f56c6c;">加载失败</td></tr>'
     }
   }
 
@@ -235,8 +239,7 @@ const LotteryList = (() => {
         red4: sorted[3], red5: sorted[4], red6: sorted[5],
         blue: formBlue
       })
-      // 录入开奖号码后触发该期购买记录的盈亏计算
-      api.post(`/api/purchase/calc/${issue}`).catch(() => {})
+      // 后端 Controller 已提交异步多线程计算购买记录和预测号码
       toast('录入成功')
       closeModal()
       fetchList()
