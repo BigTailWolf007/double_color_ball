@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
 
 /**
@@ -25,6 +26,7 @@ import javax.validation.Valid;
 public class RecommendController {
 
     private final RecommendService recommendService;
+    private final HttpServletRequest request;
 
     /** 根据过滤条件生成符合条件的号码组合 */
     @PostMapping("/generate")
@@ -35,6 +37,7 @@ public class RecommendController {
     /** 将当前规则生成的全量号码保存为预测记录，返回保存条数 */
     @PostMapping("/save-predict")
     public Result<Integer> savePredict(@RequestBody @Valid RecommendSavePredictDTO dto) {
-        return Result.success(recommendService.savePredict(dto));
+        Long userId = (Long) request.getAttribute("userId");
+        return Result.success(recommendService.savePredict(dto, userId));
     }
 }

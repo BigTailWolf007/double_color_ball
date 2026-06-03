@@ -1,9 +1,23 @@
 const PredictList = (() => {
-  let state = { page: 1, size: 20, total: 0, issue: '' }
+  let state = { page: 1, size: 20, total: 0, issue: '', userId: null }
   let selectedIds = new Set()
+  let isAdmin = false
+  let currentUser = null
+
+  function getLoginUserId() {
+    const user = Session.getUser()
+    return (user && user.id) ? user.id : null
+  }
 
   function render() {
+    isAdmin = (Session.getUser().role || '').toUpperCase() === 'ADMIN'
+    currentUser = Session.getUser()
+    // 默认勾选当前用户
+    if (state.userId === null && currentUser && currentUser.id) {
+      state.userId = currentUser.id
+    }
     selectedIds = new Set()
+    const userCol = isAdmin
     document.getElementById('main-content').innerHTML = `
       <div class="card" style="flex:1;display:flex;flex-direction:column;min-height:0;">
         <div class="card-header">
@@ -20,6 +34,7 @@ const PredictList = (() => {
           <div class="filter-bar">
             <label>目标期号</label>
             <input class="form-input" id="q-issue" placeholder="请输入期号" value="${state.issue}" style="width:160px;" />
+            ${isAdmin ? '<label>用户</label><div style="position:relative;"><input class="form-input" id="q-user" placeholder="输入用户名搜索" value="' + (currentUser.nickname || currentUser.username || '') + '" style="width:140px;" /></div>' : ''}
             <button class="btn btn-primary" id="btn-search">查询</button>
             <button class="btn btn-default" id="btn-reset">重置</button>
           </div>
@@ -29,6 +44,7 @@ const PredictList = (() => {
                 <tr>
                   <th style="width:36px;"><input type="checkbox" id="check-all" title="全选/取消" /></th>
                   <th>目标期号</th><th>号码</th>
+                  ${isAdmin ? '<th class="text-center">用户</th>' : ''}
                   <th class="text-center">和值</th><th class="text-center">跨度</th><th class="text-center">区间比</th><th class="text-center">奇偶比</th>
                   <th class="text-center">命中红球</th><th class="text-center">命中蓝球</th>
                   <th class="text-center">命中等级</th><th>生成时间</th><th>操作</th>
@@ -48,7 +64,15 @@ const PredictList = (() => {
     })
     document.getElementById('btn-reset').addEventListener('click', () => {
       state.issue = ''; state.page = 1
+      if (isAdmin) {
+        const uid = currentUser && currentUser.id ? currentUser.id : null
+        state.userId = uid
+      }
       document.getElementById('q-issue').value = ''
+      if (isAdmin) {
+        const uEl = document.getElementById('q-user')
+        if (uEl) uEl.value = (currentUser.nickname || currentUser.username || '')
+      }
       fetchList()
     })
     document.getElementById('btn-calc').addEventListener('click', handleCalc)
@@ -69,6 +93,9 @@ const PredictList = (() => {
     })
 
     renderIssueInput('q-issue', '/api/predict/issue-suggest', val => { state.issue = val })
+    if (isAdmin) {
+      renderUserInput('q-user', '/api/predict/user-suggest', uid => { state.userId = uid })
+    }
 
     fetchList()
   }
@@ -81,16 +108,17 @@ const PredictList = (() => {
   async function fetchList() {
     const tbody = document.getElementById('table-body')
     if (!tbody) return
-    tbody.innerHTML = '<tr><td colspan="12" class="text-center" style="color:#909399;">加载中...</td></tr>'
+    tbody.innerHTML = `<tr><td colspan="${isAdmin ? 13 : 12}" class="text-center" style="color:#909399;">加载中...</td></tr>`
     try {
       const params = { page: state.page, size: state.size }
       if (state.issue) params.issue = state.issue
+      if (state.userId) params.userId = state.userId
       const res = await api.get('/api/predict/list', params)
       const list = res.data.list || []
       state.total = res.data.total || 0
 
       if (!list.length) {
-        tbody.innerHTML = '<tr><td colspan="12" class="text-center" style="color:#909399;">暂无数据</td></tr>'
+        tbody.innerHTML = `<tr><td colspan="${isAdmin ? 13 : 12}" class="text-center" style="color:#909399;">暂无数据</td></tr>`
       } else {
         tbody.innerHTML = list.map(row => {
           let hitRedHtml, hitBlueHtml
@@ -105,10 +133,12 @@ const PredictList = (() => {
             hitBlueHtml = '<span class="tag tag-info">待开奖</span>'
           }
           const checked = selectedIds.has(row.id) ? 'checked' : ''
+          const userCol = isAdmin ? `<td class="text-center">${row.username || '-'}</td>` : ''
           return `<tr>
             <td style="text-align:center;"><input type="checkbox" class="row-check" data-id="${row.id}" ${checked} /></td>
             <td>${row.issue}</td>
             <td>${renderBalls(row.reds, row.blue, row.drawReds, row.drawBlue)}</td>
+            ${userCol}
             <td class="text-center">${row.sumVal ?? '-'}</td>
             <td class="text-center">${row.rangeVal ?? '-'}</td>
             <td class="text-center">${row.zoneRatio ?? '-'}</td>
@@ -141,7 +171,7 @@ const PredictList = (() => {
         state.page = p; state.size = s; fetchList()
       })
     } catch (e) {
-      if (tbody) tbody.innerHTML = '<tr><td colspan="12" class="text-center" style="color:#f56c6c;">加载失败</td></tr>'
+      if (tbody) tbody.innerHTML = `<tr><td colspan="${isAdmin ? 13 : 12}" class="text-center" style="color:#f56c6c;">加载失败</td></tr>`
     }
   }
 
@@ -157,59 +187,37 @@ const PredictList = (() => {
   }
 
   async function handleSyncByIssue() {
-    let issues
-    try {
-      const res = await api.get('/api/predict/issues')
-      issues = res.data || []
-    } catch (e) { return }
-
-    if (!issues.length) { toast('暂无预测记录', 'warning'); return }
-
-    const checked = new Set()
+    let selectedIssue = ''
 
     openModal('选择同步期号',
-      `<div style="margin-bottom:8px;">
-        <label style="cursor:pointer;">
-          <input type="checkbox" id="sync-check-all" /> 全选
-        </label>
-      </div>
-      <div style="max-height:320px;overflow-y:auto;display:flex;flex-wrap:wrap;gap:8px;">
-        ${issues.map(issue => `
-          <label style="cursor:pointer;display:flex;align-items:center;gap:4px;min-width:100px;">
-            <input type="checkbox" class="sync-issue-cb" value="${issue}" />
-            ${issue}
-          </label>`).join('')}
+      `<div style="display:flex;flex-direction:column;gap:12px;">
+        <div>
+          <label>期号</label>
+          <div style="position:relative;">
+            <input class="form-input" id="sync-issue" placeholder="请输入期号，如 2026061" style="width:100%;margin-top:4px;" />
+          </div>
+        </div>
       </div>`,
       `<button class="btn btn-default" id="sync-cancel">取消</button>
        <button class="btn btn-primary" id="sync-confirm">同步到购买记录</button>`
     )
 
-    document.getElementById('sync-check-all').addEventListener('change', e => {
-      document.querySelectorAll('.sync-issue-cb').forEach(cb => {
-        cb.checked = e.target.checked
-        e.target.checked ? checked.add(cb.value) : checked.delete(cb.value)
-      })
-    })
-    document.querySelectorAll('.sync-issue-cb').forEach(cb => {
-      cb.addEventListener('change', e => {
-        e.target.checked ? checked.add(cb.value) : checked.delete(cb.value)
-        const all = document.querySelectorAll('.sync-issue-cb')
-        document.getElementById('sync-check-all').checked = [...all].every(c => c.checked)
-      })
-    })
+    // 期号自动补全输入框
+    renderIssueInput('sync-issue', '/api/predict/issue-suggest', val => { selectedIssue = val })
 
     document.getElementById('sync-cancel').addEventListener('click', closeModal)
     document.getElementById('sync-confirm').addEventListener('click', async () => {
-      const selected = [...checked]
-      if (!selected.length) { toast('请至少选择一个期号', 'warning'); return }
+      if (!selectedIssue) { toast('请选择期号', 'warning'); return }
 
       const btn = document.getElementById('sync-confirm')
       btn.disabled = true
       btn.textContent = '同步中...'
 
       try {
-        const res = await api.post('/api/predict/sync-by-issues', selected)
-        toast(`同步完成：共同步 ${res.data} 条到购买记录`)
+        const userId = getLoginUserId()
+        if (!userId) { toast('无法获取用户ID，请重新登录', 'error'); return }
+        const res = await api.post('/api/predict/sync-by-issues', { issues: [selectedIssue], userId: userId })
+        toast(`同步完成:共同步 ${res.data} 条到购买记录`)
         closeModal()
       } catch (e) {
       } finally {
@@ -222,70 +230,50 @@ const PredictList = (() => {
   async function handleSyncSelected() {
     if (!selectedIds.size) return
     try {
-      await confirm(`确认将已勾选的 ${selectedIds.size} 条预测号码同步到购买记录？`)
-      const res = await api.post('/api/predict/sync-by-ids', [...selectedIds])
-      toast(`同步完成：共同步 ${res.data} 条到购买记录`)
+      await confirm(`确认将已勾选的 ${selectedIds.size} 条预测号码同步到购买记录?`)
+      const userId = getLoginUserId()
+      if (!userId) { toast('无法获取用户ID，请重新登录', 'error'); return }
+      const res = await api.post('/api/predict/sync-by-ids', { ids: [...selectedIds], userId: userId })
+      toast(`同步完成:共同步 ${res.data} 条到购买记录`)
       selectedIds.clear()
       fetchList()
     } catch (e) {}
   }
 
   async function handleExport() {
-    let issues
-    try {
-      const res = await api.get('/api/predict/issues')
-      issues = res.data || []
-    } catch (e) { return }
-
-    if (!issues.length) { toast('暂无预测记录可导出', 'warning'); return }
-
-    const checked = new Set(issues)
+    let selectedIssue = ''
 
     openModal('选择导出期号',
-      `<div style="margin-bottom:8px;">
-        <label style="cursor:pointer;">
-          <input type="checkbox" id="export-check-all" checked /> 全选
-        </label>
-      </div>
-      <div style="max-height:320px;overflow-y:auto;display:flex;flex-wrap:wrap;gap:8px;" id="export-issue-list">
-        ${issues.map(issue => `
-          <label style="cursor:pointer;display:flex;align-items:center;gap:4px;min-width:100px;">
-            <input type="checkbox" class="export-issue-cb" value="${issue}" checked />
-            ${issue}
-          </label>`).join('')}
+      `<div>
+        <label>期号</label>
+        <div style="position:relative;">
+          <input class="form-input" id="export-issue" placeholder="请输入期号，如 2026061" style="width:100%;margin-top:4px;" />
+        </div>
       </div>`,
       `<button class="btn btn-default" id="export-cancel">取消</button>
        <button class="btn btn-primary" id="export-download">下载</button>`
     )
 
-    document.getElementById('export-check-all').addEventListener('change', e => {
-      document.querySelectorAll('.export-issue-cb').forEach(cb => {
-        cb.checked = e.target.checked
-        e.target.checked ? checked.add(cb.value) : checked.delete(cb.value)
-      })
-    })
-    document.querySelectorAll('.export-issue-cb').forEach(cb => {
-      cb.addEventListener('change', e => {
-        e.target.checked ? checked.add(cb.value) : checked.delete(cb.value)
-        const all = document.querySelectorAll('.export-issue-cb')
-        document.getElementById('export-check-all').checked = [...all].every(c => c.checked)
-      })
-    })
+    renderIssueInput('export-issue', '/api/predict/issue-suggest', val => { selectedIssue = val })
 
     document.getElementById('export-cancel').addEventListener('click', closeModal)
     document.getElementById('export-download').addEventListener('click', async () => {
-      const selected = [...checked]
-      if (!selected.length) { toast('请至少选择一个期号', 'warning'); return }
+      if (!selectedIssue) { toast('请选择期号', 'warning'); return }
 
       const btn = document.getElementById('export-download')
       btn.disabled = true
       btn.textContent = '导出中...'
 
       try {
+        const token = Session.getToken()
+        const userId = getLoginUserId()
+        const headers = { 'Content-Type': 'application/json' }
+        if (token) headers['Authorization'] = 'Bearer ' + token
+
         const response = await fetch(`${api.baseUrl}/api/predict/export`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(selected)
+          headers: headers,
+          body: JSON.stringify({ issues: [selectedIssue], userId: userId })
         })
         if (!response.ok) {
           const err = await response.json().catch(() => null)
@@ -294,15 +282,16 @@ const PredictList = (() => {
         }
 
         const blob = await response.blob()
-        const url = URL.createObjectURL(blob)
+        const blobUrl = URL.createObjectURL(blob)
         const a = document.createElement('a')
-        a.href = url
-        a.download = `预测号码_${selected.length}期_${new Date().toLocaleDateString('zh-CN').replace(/\//g, '')}.txt`
+        a.href = blobUrl
+        a.download = `预测号码_${selectedIssue}_${new Date().toLocaleDateString('zh-CN').replace(/\//g, '')}.txt`
         a.click()
-        setTimeout(() => URL.revokeObjectURL(url), 1000)
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 1000)
         closeModal()
         toast('导出成功')
       } catch (e) {
+        toast('导出失败：' + (e.message || '网络错误'), 'error')
       } finally {
         btn.disabled = false
         btn.textContent = '下载'
@@ -312,7 +301,7 @@ const PredictList = (() => {
 
   async function handleDeleteById(id) {
     try {
-      await confirm('确认删除该条预测记录？')
+      await confirm('确认删除该条预测记录?')
       await api.delete(`/api/predict/${id}`)
       selectedIds.delete(Number(id))
       toast('删除成功')
@@ -321,22 +310,68 @@ const PredictList = (() => {
   }
 
   async function handleDeleteByIssue() {
-    try {
-      const issue = await prompt('请输入要清除的期号', '如：2024001', v => !!v || '期号不能为空')
-      const res = await api.delete(`/api/predict/issue/${issue}`)
-      toast(`已清除期号 ${issue} 的 ${res.data} 条预测记录`)
-      fetchList()
-    } catch (e) {}
+    let selectedIssue = ''
+
+    openModal('按期号清除预测记录',
+      `<div>
+        <label>期号</label>
+        <div style="position:relative;">
+          <input class="form-input" id="clear-issue" placeholder="请输入期号，如 2026061" style="width:100%;margin-top:4px;" />
+        </div>
+      </div>`,
+      `<button class="btn btn-default" id="clear-cancel">取消</button>
+       <button class="btn btn-danger" id="clear-ok">确认清除</button>`
+    )
+
+    renderIssueInput('clear-issue', '/api/predict/issue-suggest', val => { selectedIssue = val })
+
+    document.getElementById('clear-cancel').addEventListener('click', closeModal)
+    document.getElementById('clear-ok').addEventListener('click', async () => {
+      if (!selectedIssue) { toast('请选择期号', 'warning'); return }
+      try {
+        await confirm(`确认清除期号 ${selectedIssue} 的所有预测记录？`)
+        const userId = getLoginUserId()
+        if (!userId) { toast('无法获取用户ID，请重新登录', 'error'); return }
+        const res = await api.delete(`/api/predict/issue/${selectedIssue}?userId=${userId}`)
+        toast(`已清除期号 ${selectedIssue} 的 ${res.data} 条预测记录`)
+        closeModal()
+        fetchList()
+      } catch (e) {}
+    })
   }
 
   async function handleCalc() {
-    try {
-      const issue = await prompt('请输入要重新计算的期号', '如：2024001', v => !!v || '期号不能为空')
-      await api.post(`/api/predict/calc/${issue}`)
-      toast(`期号 ${issue} 已提交后台异步重新计算，稍后刷新查看结果`)
-      // 延迟刷新，等异步计算完成
-      setTimeout(() => fetchList(), 3000)
-    } catch (e) {}
+    let selectedIssue = ''
+
+    openModal('重新计算命中结果',
+      `<div>
+        <label>期号</label>
+        <div style="position:relative;">
+          <input class="form-input" id="calc-issue" placeholder="请输入期号，如 2026061" style="width:100%;margin-top:4px;" />
+        </div>
+      </div>`,
+      `<button class="btn btn-default" id="calc-cancel">取消</button>
+       <button class="btn btn-primary" id="calc-ok">开始计算</button>`
+    )
+
+    renderIssueInput('calc-issue', '/api/predict/issue-suggest', val => { selectedIssue = val })
+
+    document.getElementById('calc-cancel').addEventListener('click', closeModal)
+    document.getElementById('calc-ok').addEventListener('click', async () => {
+      if (!selectedIssue) { toast('请选择期号', 'warning'); return }
+      const btn = document.getElementById('calc-ok')
+      btn.disabled = true
+      btn.textContent = '计算中...'
+      try {
+        await api.post(`/api/predict/calc/${selectedIssue}`)
+        toast(`期号 ${selectedIssue} 已提交后台异步重新计算，稍后刷新查看结果`)
+        closeModal()
+        setTimeout(() => fetchList(), 3000)
+      } catch (e) {
+        btn.disabled = false
+        btn.textContent = '开始计算'
+      }
+    })
   }
 
   return { render }

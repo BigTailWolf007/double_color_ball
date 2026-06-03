@@ -72,4 +72,7 @@ public class PurchaseAddDTO {
 
     /** 备注 */
     private String remark;
+
+    /** 所属用户ID（同步操作时使用） */
+    private Long userId;
 }

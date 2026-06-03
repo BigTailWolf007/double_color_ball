@@ -55,7 +55,7 @@ public class RecommendService {
     /**
      * 从缓存取全量数据，批量保存为预测记录
      */
-    public int savePredict(RecommendSavePredictDTO dto) {
+    public int savePredict(RecommendSavePredictDTO dto, Long userId) {
         RecommendQueryDTO queryDTO = RecommendQueryDTO.builder()
                 .sumMin(dto.getSumMin())
                 .sumMax(dto.getSumMax())
@@ -79,7 +79,7 @@ public class RecommendService {
                     .build());
         }
 
-        predictService.save(payload);
+        predictService.save(payload, userId);
         return payload.size();
     }
 

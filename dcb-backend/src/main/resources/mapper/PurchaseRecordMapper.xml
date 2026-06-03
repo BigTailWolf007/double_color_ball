@@ -23,22 +23,34 @@
         <result column="fzone_ratio"     property="zoneRatio"/>
         <result column="fodd_even_ratio" property="oddEvenRatio"/>
         <result column="frange_val"      property="rangeVal"/>
+        <result column="fuser_id"       property="userId"/>
     </resultMap>
 
     <select id="selectPageByCondition" resultMap="BaseResultMap">
         SELECT fid, fissue, fred1, fred2, fred3, fred4, fred5, fred6, fblue, fball_key,
                fquantity, fprize_level, fprize_money, fremark, fcreated_at,
-               fsum_val, fzone_ratio, fodd_even_ratio, frange_val
+               fsum_val, fzone_ratio, fodd_even_ratio, frange_val, fuser_id
         FROM t_purchase_record
         <where>
+            <if test="userId != null">
+                AND (fuser_id = #{userId} OR fuser_id IS NULL)
+            </if>
             <if test="issue != null and issue != ''">
                 AND fissue LIKE CONCAT('%', #{issue}, '%')
             </if>
-            <if test="prizeLevels != null and prizeLevels.size() > 0">
-                AND fprize_level IN
-                <foreach collection="prizeLevels" item="lv" open="(" separator="," close=")">
-                    #{lv}
-                </foreach>
+            <if test="prizeLevels != null and prizeLevels.size() > 0 or includeNullPrize">
+                AND (
+                    <if test="prizeLevels != null and prizeLevels.size() > 0">
+                        fprize_level IN
+                        <foreach collection="prizeLevels" item="lv" open="(" separator="," close=")">
+                            #{lv}
+                        </foreach>
+                        <if test="includeNullPrize"> OR </if>
+                    </if>
+                    <if test="includeNullPrize">
+                        fprize_level IS NULL
+                    </if>
+                )
             </if>
         </where>
         ORDER BY fissue DESC, fcreated_at DESC
@@ -61,14 +73,25 @@
             COALESCE(SUM(fprize_money), 0) AS totalPrizeMoney
         FROM t_purchase_record
         <where>
+            <if test="userId != null">
+                AND (fuser_id = #{userId} OR fuser_id IS NULL)
+            </if>
             <if test="issue != null and issue != ''">
                 AND fissue LIKE CONCAT('%', #{issue}, '%')
             </if>
-            <if test="prizeLevels != null and prizeLevels.size() > 0">
-                AND fprize_level IN
-                <foreach collection="prizeLevels" item="lv" open="(" separator="," close=")">
-                    #{lv}
-                </foreach>
+            <if test="prizeLevels != null and prizeLevels.size() > 0 or includeNullPrize">
+                AND (
+                    <if test="prizeLevels != null and prizeLevels.size() > 0">
+                        fprize_level IN
+                        <foreach collection="prizeLevels" item="lv" open="(" separator="," close=")">
+                            #{lv}
+                        </foreach>
+                        <if test="includeNullPrize"> OR </if>
+                    </if>
+                    <if test="includeNullPrize">
+                        fprize_level IS NULL
+                    </if>
+                )
             </if>
         </where>
     </select>

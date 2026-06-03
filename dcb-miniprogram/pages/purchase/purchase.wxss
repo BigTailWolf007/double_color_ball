@@ -1,0 +1,10 @@
+.purchase-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.filter-item.active {
+  background: #fef0f0;
+  color: #d43030;
+  border-color: #d43030;
+}

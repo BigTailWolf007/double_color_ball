@@ -22,14 +22,18 @@
         <result column="fzone_ratio"     property="zoneRatio"/>
         <result column="fodd_even_ratio" property="oddEvenRatio"/>
         <result column="frange_val"      property="rangeVal"/>
+        <result column="fuser_id"       property="userId"/>
     </resultMap>
 
     <select id="selectPageByIssue" resultMap="BaseResultMap">
         SELECT fid, fissue, fred1, fred2, fred3, fred4, fred5, fred6, fblue, fball_key,
                fhit_red, fhit_blue, fprize_level, fcreated_at,
-               fsum_val, fzone_ratio, fodd_even_ratio, frange_val
+               fsum_val, fzone_ratio, fodd_even_ratio, frange_val, fuser_id
         FROM t_predict_record
         <where>
+            <if test="userId != null">
+                AND (fuser_id = #{userId} OR fuser_id IS NULL)
+            </if>
             <if test="issue != null and issue != ''">
                 AND fissue LIKE CONCAT('%', #{issue}, '%')
             </if>
@@ -47,6 +51,9 @@
         <foreach collection="issues" item="i" open="(" separator="," close=")">
             #{i}
         </foreach>
+        <if test="userId != null">
+            AND (fuser_id = #{userId} OR fuser_id IS NULL)
+        </if>
     </select>
 
     <select id="selectDistinctIssues" resultType="string">
@@ -56,12 +63,15 @@
     <select id="selectByIssues" resultMap="BaseResultMap">
         SELECT fid, fissue, fred1, fred2, fred3, fred4, fred5, fred6, fblue, fball_key,
                fhit_red, fhit_blue, fprize_level, fcreated_at,
-               fsum_val, fzone_ratio, fodd_even_ratio, frange_val
+               fsum_val, fzone_ratio, fodd_even_ratio, frange_val, fuser_id
         FROM t_predict_record
         WHERE fissue IN
         <foreach collection="issues" item="i" open="(" separator="," close=")">
             #{i}
         </foreach>
+        <if test="userId != null">
+            AND fuser_id = #{userId}
+        </if>
         ORDER BY fissue DESC, fcreated_at DESC
     </select>
 
@@ -74,13 +84,13 @@
     <insert id="batchInsert" parameterType="java.util.List" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO t_predict_record
             (fissue, fred1, fred2, fred3, fred4, fred5, fred6, fblue, fball_key,
-             fhit_red, fhit_blue, fprize_level,
+             fhit_red, fhit_blue, fprize_level, fuser_id,
              fsum_val, fzone_ratio, fodd_even_ratio, frange_val)
         VALUES
         <foreach collection="list" item="r" separator=",">
             (#{r.issue}, #{r.red1}, #{r.red2}, #{r.red3}, #{r.red4}, #{r.red5}, #{r.red6},
              #{r.blue}, #{r.ballKey}, #{r.hitRed}, #{r.hitBlue}, #{r.prizeLevel},
-             #{r.sumVal}, #{r.zoneRatio}, #{r.oddEvenRatio}, #{r.rangeVal})
+             #{r.userId}, #{r.sumVal}, #{r.zoneRatio}, #{r.oddEvenRatio}, #{r.rangeVal})
         </foreach>
     </insert>
 

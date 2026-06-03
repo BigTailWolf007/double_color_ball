@@ -1,0 +1,14 @@
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  padding: 16rpx 0;
+}
+
+.filter-item {
+  padding: 12rpx 20rpx;
+  background: #fff;
+  border-radius: 8rpx;
+  font-size: 26rpx;
+  border: 1rpx solid #e0e0e0;
+}

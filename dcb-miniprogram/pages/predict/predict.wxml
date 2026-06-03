@@ -1,0 +1,25 @@
+<!-- 预测记录页 -->
+<scroll-view class="container" scroll-y refresher-enabled bindrefresherrefresh="onRefresh" refresher-triggered="{{refreshing}}">
+  <view wx:if="{{list.length > 0}}">
+    <view wx:for="{{list}}" wx:key="id" class="card predict-item">
+      <view style="display:flex;justify-content:space-between;">
+        <text class="issue-tag">第 {{item.issue}} 期</text>
+        <text class="tag {{item.prizeLevel === null ? 'tag-warning' : item.prizeLevel > 0 ? 'tag-success' : 'tag-info'}}">
+          {{item.prizeLevelDesc}}
+        </text>
+      </view>
+      <view class="ball-row" style="margin:12rpx 0;">
+        <block wx:for="{{item.reds}}" wx:key="index">
+          <view class="ball ball-red" style="width:44rpx;height:44rpx;font-size:22rpx;">{{item}}</view>
+        </block>
+        <view class="ball ball-blue" style="width:44rpx;height:44rpx;font-size:22rpx;">{{item.blue}}</view>
+      </view>
+      <view wx:if="{{item.prizeLevel !== null}}" style="font-size:24rpx;color:#999;">
+        命中红球 {{item.hitRed || 0}} 个{{item.hitBlue ? '，蓝球命中' : ''}}
+      </view>
+    </view>
+    <view wx:if="{{hasMore}}" style="text-align:center;padding:20rpx;color:#999;" bindtap="loadMore">加载更多</view>
+    <view wx:else style="text-align:center;padding:20rpx;color:#ccc;">— 已加载全部 —</view>
+  </view>
+  <view wx:else style="text-align:center;padding:80rpx;color:#999;">暂无预测记录</view>
+</scroll-view>

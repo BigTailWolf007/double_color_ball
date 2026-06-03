@@ -85,6 +85,7 @@
     </div>
   </div>
 
+  <script src="session.js"></script>
   <script src="api.js"></script>
   <script src="utils.js"></script>
   <script src="pages/calc-error-log.js"></script>
@@ -104,13 +105,13 @@
   <script>
     // 登录检查
     (function(){
-      if (!localStorage.getItem('token')) {
+      if (!Session.getToken()) {
         LoginPage.render()
         return
       }
       // 显示侧边栏用户信息
       try {
-        var user = JSON.parse(localStorage.getItem('user') || '{}')
+        var user = Session.getUser()
         var nickEl = document.getElementById('sidebar-nickname')
         if (nickEl) nickEl.textContent = user.nickname || '管理员'
       } catch(e) {}
@@ -118,8 +119,7 @@
       var logoutBtn = document.getElementById('sidebar-logout')
       if (logoutBtn) {
         logoutBtn.addEventListener('click', function(){
-          localStorage.removeItem('token')
-          localStorage.removeItem('user')
+          Session.clear()
           location.reload()
         })
       }

@@ -1,0 +1,50 @@
+<!-- 购买记录页 -->
+<scroll-view class="container" scroll-y refresher-enabled bindrefresherrefresh="onRefresh" refresher-triggered="{{refreshing}}">
+  <!-- 汇总 -->
+  <view class="stat-cards">
+    <view class="card stat-card">
+      <view class="stat-value">¥{{summary.totalCost || 0}}</view>
+      <view class="stat-label">总投入</view>
+    </view>
+    <view class="card stat-card">
+      <view class="stat-value" style="color:#67c23a;">¥{{summary.totalPrizeMoney || 0}}</view>
+      <view class="stat-label">总奖金</view>
+    </view>
+    <view class="card stat-card">
+      <view class="stat-value" style="color:{{summary.profit >= 0 ? '#67c23a' : '#f56c6c'}};">¥{{summary.profit || 0}}</view>
+      <view class="stat-label">盈亏</view>
+    </view>
+  </view>
+
+  <!-- 筛选 -->
+  <view class="filter-bar">
+    <view class="filter-item {{prizeLevel === '' ? 'active' : ''}}" bindtap="filterByLevel" data-level="">全部</view>
+    <view class="filter-item {{prizeLevel === '0' ? 'active' : ''}}" bindtap="filterByLevel" data-level="0">未中奖</view>
+    <view class="filter-item {{prizeLevel === '1_2_3_4_5_6' ? 'active' : ''}}" bindtap="filterByLevel" data-level="1_2_3_4_5_6">已中奖</view>
+  </view>
+
+  <!-- 列表 -->
+  <view wx:if="{{list.length > 0}}">
+    <view wx:for="{{list}}" wx:key="id" class="card purchase-item">
+      <view style="display:flex;justify-content:space-between;align-items:center;">
+        <text class="issue-tag">第 {{item.issue}} 期</text>
+        <text class="tag {{item.prizeLevel > 0 ? 'tag-success' : item.prizeLevel === 0 ? 'tag-info' : 'tag-warning'}}">
+          {{item.prizeLevelDesc}}
+        </text>
+      </view>
+      <view class="ball-row" style="margin:12rpx 0;">
+        <block wx:for="{{item.reds}}" wx:key="index">
+          <view class="ball ball-red" style="width:44rpx;height:44rpx;font-size:22rpx;">{{item}}</view>
+        </block>
+        <view class="ball ball-blue" style="width:44rpx;height:44rpx;font-size:22rpx;">{{item.blue}}</view>
+      </view>
+      <view style="display:flex;justify-content:space-between;font-size:24rpx;color:#999;">
+        <text>{{item.quantity}}注</text>
+        <text wx:if="{{item.prizeMoney}}">奖金 ¥{{item.prizeMoney}}</text>
+      </view>
+    </view>
+    <view wx:if="{{hasMore}}" style="text-align:center;padding:20rpx;color:#999;" bindtap="loadMore">加载更多</view>
+    <view wx:else style="text-align:center;padding:20rpx;color:#ccc;">— 已加载全部 —</view>
+  </view>
+  <view wx:else style="text-align:center;padding:80rpx;color:#999;">暂无购买记录</view>
+</scroll-view>

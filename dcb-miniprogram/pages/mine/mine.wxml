@@ -1,0 +1,46 @@
+<!-- 个人中心 -->
+<view class="container">
+  <!-- 用户信息 -->
+  <view class="card user-card">
+    <image class="avatar" src="{{userInfo.avatarUrl || '/assets/default-avatar.png'}}" mode="aspectFill" />
+    <view class="user-info">
+      <view class="user-name">{{userInfo.nickName || '微信用户'}}</view>
+      <view class="user-role">普通用户</view>
+    </view>
+  </view>
+
+  <!-- 订阅状态 -->
+  <view class="card subscribe-card" bindtap="goSubscribe">
+    <view style="display:flex;align-items:center;gap:16rpx;">
+      <text style="font-size:40rpx;">💎</text>
+      <view>
+        <view style="font-size:30rpx;font-weight:600;">{{subscribeStatus.text}}</view>
+        <view style="font-size:24rpx;color:#909399;">{{subscribeStatus.desc}}</view>
+      </view>
+    </view>
+    <text style="color:#d43030;">›</text>
+  </view>
+
+  <!-- 菜单 -->
+  <view class="card menu-list">
+    <view class="menu-item" bindtap="goPage" data-page="purchase">
+      <text>💰 我的购买</text>
+      <text style="color:#ccc;">›</text>
+    </view>
+    <view class="menu-item" bindtap="goPage" data-page="predict">
+      <text>🔮 我的预测</text>
+      <text style="color:#ccc;">›</text>
+    </view>
+    <view class="menu-item" bindtap="goPage" data-page="lottery">
+      <text>🎯 开奖查询</text>
+      <text style="color:#ccc;">›</text>
+    </view>
+    <view class="menu-item" bindtap="goPage" data-page="recommend">
+      <text>🧩 号码推荐</text>
+      <text style="color:#ccc;">›</text>
+    </view>
+  </view>
+
+  <!-- 退出登录 -->
+  <button class="btn btn-block" style="margin-top:40rpx;background:#fff;color:#f56c6c;" bindtap="handleLogout">退出登录</button>
+</view>

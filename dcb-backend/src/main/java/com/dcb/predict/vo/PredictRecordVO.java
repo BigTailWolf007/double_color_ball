@@ -61,4 +61,7 @@ public class PredictRecordVO {
 
     /** 跨度（红球最大值-最小值） */
     private Integer rangeVal;
+
+    /** 所属用户名 */
+    private String username;
 }

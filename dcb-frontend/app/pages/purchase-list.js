@@ -1,15 +1,23 @@
 const PurchaseList = (() => {
-  let state = { page: 1, size: 20, total: 0, issue: '', prizeLevels: [1,2,3,4,5,6,7] }
+  let state = { page: 1, size: 20, total: 0, issue: '', prizeLevels: [1,2,3,4,5,6,7,0,-1], userId: null }
   let selectedIds = new Set()
+  let isAdmin = false
+  let currentUser = null
 
   const prizeLevelOptions = [
     { label: '一等奖', value: 1 }, { label: '二等奖', value: 2 },
     { label: '三等奖', value: 3 }, { label: '四等奖', value: 4 },
     { label: '五等奖', value: 5 }, { label: '六等奖', value: 6 },
-    { label: '福运奖', value: 7 }, { label: '未中奖', value: 0 }
+    { label: '福运奖', value: 7 }, { label: '未中奖', value: 0 },
+    { label: '待计算', value: -1 }
   ]
 
   function render() {
+    isAdmin = (Session.getUser().role || '').toUpperCase() === 'ADMIN'
+    currentUser = Session.getUser()
+    if (state.userId === null && currentUser && currentUser.id) {
+      state.userId = currentUser.id
+    }
     selectedIds = new Set()
     document.getElementById('main-content').innerHTML = `
       <div class="card" style="flex:1;display:flex;flex-direction:column;min-height:0;">
@@ -25,6 +33,7 @@ const PurchaseList = (() => {
           <div class="filter-bar">
             <label>期号</label>
             <input class="form-input" id="q-issue" placeholder="请输入期号" value="${state.issue}" style="width:160px;" />
+            ${isAdmin ? '<label>用户</label><div style="position:relative;"><input class="form-input" id="q-user" placeholder="输入用户名搜索" value="' + (currentUser.nickname || currentUser.username || '') + '" style="width:140px;" /></div>' : ''}
             <label>中奖等级</label>
             <div class="multi-select" id="q-level-wrap">
               <div class="multi-select-trigger" id="q-level-trigger">
@@ -58,12 +67,13 @@ const PurchaseList = (() => {
                 <tr>
                   <th style="width:36px;"><input type="checkbox" id="check-all" title="全选/取消" /></th>
                   <th>期号</th><th>号码</th><th class="text-center">注数</th>
+                  ${isAdmin ? '<th class="text-center">用户</th>' : ''}
                   <th class="text-center">中奖等级</th><th class="text-right">总奖金</th>
                   <th class="text-center">和值</th><th class="text-center">跨度</th><th class="text-center">区间比</th><th class="text-center">奇偶比</th>
                   <th>备注</th><th>操作</th>
                 </tr>
               </thead>
-              <tbody id="table-body"><tr><td colspan="12" class="text-center" style="color:#909399;">加载中...</td></tr></tbody>
+              <tbody id="table-body"><tr><td colspan="${isAdmin ? 13 : 12}" class="text-center" style="color:#909399;">加载中...</td></tr></tbody>
             </table>
           </div>
           <div class="pagination" id="pagination" style="margin-top:12px;"></div>
@@ -75,13 +85,22 @@ const PurchaseList = (() => {
       state.page = 1
       fetchList()
       fetchSummary()
+      fetchAllSummary()
     })
     document.getElementById('btn-reset').addEventListener('click', () => {
-      state.issue = ''; state.prizeLevels = [1,2,3,4,5,6,7]; state.page = 1
+      state.issue = ''; state.prizeLevels = [1,2,3,4,5,6,7,0,-1]; state.page = 1
+      if (isAdmin) {
+        state.userId = (currentUser && currentUser.id) ? currentUser.id : null
+      }
       document.getElementById('q-issue').value = ''
+      if (isAdmin) {
+        const uEl = document.getElementById('q-user')
+        if (uEl) uEl.value = (currentUser.nickname || currentUser.username || '')
+      }
       updateMultiSelect()
       fetchList()
       fetchSummary()
+      fetchAllSummary()
     })
     document.getElementById('btn-recalc').addEventListener('click', handleRecalc)
     document.getElementById('btn-delete-issue').addEventListener('click', handleDeleteByIssue)
@@ -99,6 +118,9 @@ const PurchaseList = (() => {
     })
 
     renderIssueInput('q-issue', '/api/purchase/issue-suggest', val => { state.issue = val })
+    if (isAdmin) {
+      renderUserInput('q-user', '/api/purchase/user-suggest', uid => { state.userId = uid })
+    }
 
     // 多选下拉逻辑
     const trigger = document.getElementById('q-level-trigger')
@@ -160,26 +182,29 @@ const PurchaseList = (() => {
   async function fetchList() {
     const tbody = document.getElementById('table-body')
     if (!tbody) return
-    tbody.innerHTML = '<tr><td colspan="12" class="text-center" style="color:#909399;">加载中...</td></tr>'
+    tbody.innerHTML = `<tr><td colspan="${isAdmin ? 13 : 12}" class="text-center" style="color:#909399;">加载中...</td></tr>`
     try {
       const params = { page: state.page, size: state.size }
       if (state.issue) params.issue = state.issue
       if (state.prizeLevels.length > 0) params.prizeLevels = state.prizeLevels.join('_')
+      if (state.userId) params.userId = state.userId
       const res = await api.get('/api/purchase/list', params)
       const list = res.data.list || []
       state.total = res.data.total || 0
 
       if (!list.length) {
-        tbody.innerHTML = '<tr><td colspan="12" class="text-center" style="color:#909399;">暂无数据</td></tr>'
+        tbody.innerHTML = `<tr><td colspan="${isAdmin ? 13 : 12}" class="text-center" style="color:#909399;">暂无数据</td></tr>`
       } else {
         tbody.innerHTML = list.map(row => {
           const prizeColor = row.prizeMoney > 0 ? '#67c23a' : '#909399'
           const checked = selectedIds.has(row.id) ? 'checked' : ''
+          const userCol = isAdmin ? `<td class="text-center">${row.username || '-'}</td>` : ''
           return `<tr>
             <td style="text-align:center;"><input type="checkbox" class="row-check" data-id="${row.id}" ${checked} /></td>
             <td>${row.issue}</td>
             <td>${renderBalls(row.reds, row.blue, row.drawReds, row.drawBlue)}</td>
             <td class="text-center">${row.quantity}</td>
+            ${userCol}
             <td class="text-center">${renderPrizeLevel(row.prizeLevel, row.prizeLevelDesc)}</td>
             <td class="text-right" style="color:${prizeColor};">¥${row.prizeMoney ?? '-'}</td>
             <td class="text-center">${row.sumVal ?? '-'}</td>
@@ -215,7 +240,7 @@ const PurchaseList = (() => {
         state.page = p; state.size = s; fetchList()
       })
     } catch (e) {
-      if (tbody) tbody.innerHTML = '<tr><td colspan="12" class="text-center" style="color:#f56c6c;">加载失败</td></tr>'
+      if (tbody) tbody.innerHTML = `<tr><td colspan="${isAdmin ? 13 : 12}" class="text-center" style="color:#f56c6c;">加载失败</td></tr>`
     }
   }
 
@@ -235,6 +260,7 @@ const PurchaseList = (() => {
       const params = {}
       if (state.issue) params.issue = state.issue
       if (state.prizeLevels.length > 0) params.prizeLevels = state.prizeLevels.join('_')
+      if (state.userId) params.userId = state.userId
       const res = await api.get('/api/purchase/summary', params)
       renderSummaryData(res.data, 'stat-cost', 'stat-prize', 'stat-profit')
     } catch (e) {}
@@ -242,7 +268,9 @@ const PurchaseList = (() => {
 
   async function fetchAllSummary() {
     try {
-      const res = await api.get('/api/purchase/summary')
+      const params = {}
+      if (state.userId) params.userId = state.userId
+      const res = await api.get('/api/purchase/summary', params)
       renderSummaryData(res.data, 'stat-cost-all', 'stat-prize-all', 'stat-profit-all')
     } catch (e) {}
   }
@@ -303,15 +331,35 @@ const PurchaseList = (() => {
   }
 
   async function handleDeleteByIssue() {
-    try {
-      const issue = await prompt('请输入要删除的期号', '如：2024001', v => !!v || '期号不能为空')
-      await confirm(`确认删除期号 ${issue} 的所有购买记录？`)
-      const res = await api.delete(`/api/purchase/issue/${issue}`)
-      toast(`已删除期号 ${issue} 的 ${res.data} 条购买记录`)
-      fetchList()
-      fetchSummary()
-      fetchAllSummary()
-    } catch (e) {}
+    let selectedIssue = ''
+
+    openModal('按期号删除购买记录',
+      `<div>
+        <label>期号</label>
+        <div style="position:relative;">
+          <input class="form-input" id="del-issue" placeholder="请输入期号，如 2026061" style="width:100%;margin-top:4px;" />
+        </div>
+      </div>`,
+      `<button class="btn btn-default" id="del-cancel">取消</button>
+       <button class="btn btn-danger" id="del-ok">确认删除</button>`
+    )
+
+    renderIssueInput('del-issue', '/api/purchase/issue-suggest', val => { selectedIssue = val })
+
+    document.getElementById('del-cancel').addEventListener('click', closeModal)
+    document.getElementById('del-ok').addEventListener('click', async () => {
+      if (!selectedIssue) { toast('请选择期号', 'warning'); return }
+      try {
+        await confirm(`确认删除期号 ${selectedIssue} 的所有购买记录？`)
+        const userId = Session.getUser().id
+        const res = await api.delete(`/api/purchase/issue/${selectedIssue}?userId=${userId}`)
+        toast(`已删除期号 ${selectedIssue} 的 ${res.data} 条购买记录`)
+        closeModal()
+        fetchList()
+        fetchSummary()
+        fetchAllSummary()
+      } catch (e) {}
+    })
   }
 
   async function handleBatchDelete() {

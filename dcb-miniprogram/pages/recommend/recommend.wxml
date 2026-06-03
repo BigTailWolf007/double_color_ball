@@ -1,0 +1,29 @@
+<!-- 推荐号码页 -->
+<scroll-view class="container" scroll-y>
+  <view class="card">
+    <view class="card-title">🧩 智能推荐号码</view>
+    <view class="filter-row">
+      <view class="filter-label">推荐数量</view>
+      <input class="filter-input" type="number" value="{{pageSize}}" bindinput="onPageSizeInput" placeholder="10" />
+    </view>
+    <button class="btn btn-primary btn-block" bindtap="generate">生成推荐</button>
+  </view>
+
+  <view wx:if="{{recommends && recommends.length > 0}}">
+    <view wx:for="{{recommends}}" wx:key="index" class="card recommend-card">
+      <view class="ball-row">
+        <block wx:for="{{item.reds}}" wx:key="idx">
+          <view class="ball ball-red">{{item}}</view>
+        </block>
+        <view class="ball ball-blue">{{item.blue}}</view>
+      </view>
+      <view class="recommend-meta">
+        <text>和值：{{item.sumVal || '-'}}</text>
+        <text>区间比：{{item.zoneRatio || '-'}}</text>
+        <text>奇偶比：{{item.oddEvenRatio || '-'}}</text>
+      </view>
+      <button class="btn btn-primary btn-small" bindtap="adopt" data-reds="{{item.reds}}" data-blue="{{item.blue}}">采纳此号码</button>
+    </view>
+  </view>
+  <view wx:else style="text-align:center;padding:80rpx;color:#999;">点击"生成推荐"获取号码</view>
+</scroll-view>

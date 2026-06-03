@@ -21,7 +21,8 @@ import java.util.Map;
 @Component
 public class JwtUtils {
 
-    private static final long EXPIRE_MS = 24 * 60 * 60 * 1000L; // 24小时
+    /** 默认过期时间：6小时（配置缺失时使用） */
+    private static final long DEFAULT_EXPIRE_MS = 6 * 60 * 60 * 1000L;
     private final ConfigService configService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -41,7 +42,7 @@ public class JwtUtils {
             claims.put("role", role);
             claims.put("loginType", loginType);
             claims.put("iat", now / 1000);
-            claims.put("exp", (now + EXPIRE_MS) / 1000);
+            claims.put("exp", (now + getExpireMs()) / 1000);
             String payloadJson = objectMapper.writeValueAsString(claims);
 
             String header = base64Encode(headerJson);
@@ -86,6 +87,19 @@ public class JwtUtils {
     private String base64Encode(String str) {
         return Base64.getUrlEncoder().withoutPadding()
                 .encodeToString(str.getBytes(StandardCharsets.UTF_8));
+    }
+
+    /**
+     * 从配置表读取 token 过期时间（毫秒），读取失败时使用默认值 6 小时
+     */
+    private long getExpireMs() {
+        try {
+            int hours = configService.getInt("jwt.expire-hours");
+            return hours * 60L * 60 * 1000;
+        } catch (Exception e) {
+            log.warn("读取 jwt.expire-hours 配置失败，使用默认值 6 小时：{}", e.getMessage());
+            return DEFAULT_EXPIRE_MS;
+        }
     }
 
     private String sign(String data) {

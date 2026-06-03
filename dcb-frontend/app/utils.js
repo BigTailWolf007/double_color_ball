@@ -92,6 +92,7 @@ function openModal(title, bodyHtml, footerHtml) {
 
 function closeModal() {
   document.getElementById('modal-overlay').style.display = 'none'
+  document.querySelectorAll('.issue-suggest-dropdown, .user-suggest-dropdown').forEach(d => d.remove())
 }
 
 document.getElementById('modal-close').addEventListener('click', closeModal)
@@ -199,21 +200,31 @@ function renderBallPicker(containerId, options, selected, max, tagClass, onChang
 // ===== 期号输入框（带下拉提示） =====
 // suggestUrl: 如 '/api/lottery/issue-suggest'
 // onChange: 用户选中或输入完成时回调，传入当前值
+// ===== 公共工具 =====
+function escapeHtml(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
 function renderIssueInput(inputId, suggestUrl, onChange) {
   const input = document.getElementById(inputId)
   if (!input) return
 
-  const wrapper = input.parentElement
-  if (!wrapper.style.position) wrapper.style.position = 'relative'
+  // 清理旧的同名下拉框
+  document.querySelectorAll('.issue-suggest-dropdown').forEach(d => d.remove())
+
   const dropdown = document.createElement('div')
-  dropdown.style.cssText = 'display:none;position:absolute;top:100%;left:0;z-index:999;background:#fff;border:1px solid #dcdfe6;border-radius:4px;box-shadow:0 2px 8px rgba(0,0,0,.12);min-width:160px;max-height:240px;overflow-y:auto;'
-  wrapper.appendChild(dropdown)
+  dropdown.className = 'issue-suggest-dropdown'
+  dropdown.style.cssText = 'display:none;position:fixed;z-index:2000;background:#fff;border:1px solid #dcdfe6;border-radius:4px;box-shadow:0 2px 8px rgba(0,0,0,.12);min-width:160px;max-height:240px;overflow-y:auto;'
+  document.body.appendChild(dropdown)
+
+  function updatePosition() {
+    const rect = input.getBoundingClientRect()
+    dropdown.style.top = rect.bottom + 'px'
+    dropdown.style.left = rect.left + 'px'
+    dropdown.style.width = rect.width + 'px'
+  }
 
   let debounceTimer = null
-
-  function escapeHtml(s) {
-    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-  }
 
   function closeDropdown() { dropdown.style.display = 'none' }
 
@@ -222,6 +233,7 @@ function renderIssueInput(inputId, suggestUrl, onChange) {
     dropdown.innerHTML = items.map(issue =>
       `<div style="padding:8px 12px;cursor:pointer;font-size:13px;color:#303133;" data-v="${escapeHtml(issue)}">${escapeHtml(issue)}</div>`
     ).join('')
+    updatePosition()
     dropdown.style.display = 'block'
     dropdown.querySelectorAll('[data-v]').forEach(item => {
       item.addEventListener('mouseenter', () => item.style.background = '#f5f7fa')
@@ -248,11 +260,17 @@ function renderIssueInput(inputId, suggestUrl, onChange) {
   }
 
   input.addEventListener('input', debounceFetch)
-  input.addEventListener('focus', debounceFetch)
+  input.addEventListener('focus', () => {
+    updatePosition()
+    debounceFetch()
+  })
   input.addEventListener('blur', () => {
     setTimeout(closeDropdown, 150)
     if (onChange) onChange(input.value.trim())
   })
+  // 滚动或窗口大小变化时关闭下拉，避免位置错乱
+  window.addEventListener('scroll', closeDropdown, true)
+  window.addEventListener('resize', closeDropdown)
   input.addEventListener('keydown', e => {
     const items = [...dropdown.querySelectorAll('[data-v]')]
     if (!items.length) return
@@ -272,6 +290,113 @@ function renderIssueInput(inputId, suggestUrl, onChange) {
       input.value = items[idx].dataset.v
       closeDropdown()
       if (onChange) onChange(items[idx].dataset.v)
+    } else if (e.key === 'Escape') {
+      closeDropdown()
+    }
+  })
+}
+
+/** 用户模糊查询输入框（类似 renderIssueInput，但显示用户名+昵称，回调传 userId） */
+function renderUserInput(inputId, suggestUrl, onChange) {
+  const input = document.getElementById(inputId)
+  if (!input) return
+
+  document.querySelectorAll('.user-suggest-dropdown').forEach(d => d.remove())
+
+  const dropdown = document.createElement('div')
+  dropdown.className = 'user-suggest-dropdown'
+  dropdown.style.cssText = 'display:none;position:fixed;z-index:2000;background:#fff;border:1px solid #dcdfe6;border-radius:4px;box-shadow:0 2px 8px rgba(0,0,0,.12);min-width:200px;max-height:240px;overflow-y:auto;'
+  document.body.appendChild(dropdown)
+
+  function updatePosition() {
+    const rect = input.getBoundingClientRect()
+    dropdown.style.top = rect.bottom + 'px'
+    dropdown.style.left = rect.left + 'px'
+    dropdown.style.width = rect.width + 'px'
+  }
+
+  function closeDropdown() { dropdown.style.display = 'none' }
+
+  let debounceTimer = null
+  let selectedUserId = null
+  let selectedUserName = ''
+  let lastConfirmedUserId = null
+  let lastConfirmedUserName = input.value
+
+  function showSuggestions(items) {
+    if (!items.length) { closeDropdown(); return }
+    dropdown.innerHTML = items.map(u => {
+      const display = u.username + (u.nickname ? ' (' + u.nickname + ')' : '')
+      return '<div style="padding:8px 12px;cursor:pointer;font-size:13px;color:#303133;" data-id="' + u.id + '" data-name="' + escapeHtml(u.username) + '">' + escapeHtml(display) + '</div>'
+    }).join('')
+    updatePosition()
+    dropdown.style.display = 'block'
+    dropdown.querySelectorAll('[data-id]').forEach(item => {
+      item.addEventListener('mouseenter', () => item.style.background = '#f5f7fa')
+      item.addEventListener('mouseleave', () => item.style.background = '')
+      item.addEventListener('mousedown', e => {
+        e.preventDefault()
+        selectedUserId = Number(item.dataset.id)
+        selectedUserName = item.dataset.name
+        input.value = item.dataset.name
+        closeDropdown()
+        if (onChange) {
+          lastConfirmedUserId = selectedUserId
+          lastConfirmedUserName = selectedUserName
+          onChange(selectedUserId)
+        }
+      })
+    })
+  }
+
+  async function fetchSuggestions(q) {
+    try {
+      const res = await api.get(suggestUrl, { q })
+      showSuggestions(res.data || [])
+    } catch (e) { closeDropdown() }
+  }
+
+  function debounceFetch() {
+    clearTimeout(debounceTimer)
+    debounceTimer = setTimeout(() => fetchSuggestions(input.value.trim()), 200)
+  }
+
+  input.addEventListener('input', debounceFetch)
+  input.addEventListener('focus', () => { updatePosition(); debounceFetch() })
+  input.addEventListener('blur', () => {
+    setTimeout(() => {
+      closeDropdown()
+      // 未从下拉选择时，恢复上次确认的用户名
+      if (!selectedUserId || selectedUserId !== lastConfirmedUserId) {
+        input.value = lastConfirmedUserName
+      }
+    }, 150)
+  })
+  input.addEventListener('keydown', e => {
+    const items = [...dropdown.querySelectorAll('[data-id]')]
+    if (!items.length) return
+    const idx = items.findIndex(i => i.classList.contains('active'))
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      const next = idx < items.length - 1 ? idx + 1 : 0
+      items.forEach(i => { i.classList.remove('active'); i.style.background = '' })
+      items[next].classList.add('active'); items[next].style.background = '#f5f7fa'
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      const prev = idx > 0 ? idx - 1 : items.length - 1
+      items.forEach(i => { i.classList.remove('active'); i.style.background = '' })
+      items[prev].classList.add('active'); items[prev].style.background = '#f5f7fa'
+    } else if (e.key === 'Enter' && idx >= 0) {
+      e.preventDefault()
+      selectedUserId = Number(items[idx].dataset.id)
+      selectedUserName = items[idx].dataset.name
+      input.value = items[idx].dataset.name
+      closeDropdown()
+      if (onChange) {
+        lastConfirmedUserId = selectedUserId
+        lastConfirmedUserName = selectedUserName
+        onChange(selectedUserId)
+      }
     } else if (e.key === 'Escape') {
       closeDropdown()
     }

@@ -9,7 +9,7 @@ async function request(method, path, options = {}) {
   }
 
   // 自动附加 JWT Token
-  const token = localStorage.getItem('token')
+  const token = Session.getToken()
   if (token) {
     config.headers['Authorization'] = 'Bearer ' + token
   }
@@ -32,8 +32,7 @@ async function request(method, path, options = {}) {
 
   // 401 自动跳转登录页
   if (res.status === 401) {
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
+    Session.clear()
     if (document.getElementById('login-username')) return // 已在登录页
     location.reload()
     return

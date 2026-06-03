@@ -40,8 +40,7 @@ const LoginPage = (() => {
     try {
       const res = await api.post('/api/auth/login', { username, password })
       if (res.code === 200) {
-        localStorage.setItem('token', res.data.token)
-        localStorage.setItem('user', JSON.stringify({ nickname: res.data.nickname, role: res.data.role }))
+        Session.store(res.data.token, JSON.stringify({ id: res.data.id, nickname: res.data.nickname, role: res.data.role }))
         location.reload()
       }
     } catch (e) {

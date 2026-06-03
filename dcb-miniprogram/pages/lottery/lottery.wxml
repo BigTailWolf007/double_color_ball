@@ -1,0 +1,33 @@
+<!-- 开奖号码页 -->
+<scroll-view class="container" scroll-y refresher-enabled bindrefresherrefresh="onRefresh" refresher-triggered="{{refreshing}}">
+  <!-- 日期筛选 -->
+  <view class="filter-bar">
+    <picker mode="date" value="{{startDate}}" bindchange="onStartDateChange">
+      <view class="filter-item">{{startDate || '开始日期'}}</view>
+    </picker>
+    <view style="color:#999;">至</view>
+    <picker mode="date" value="{{endDate}}" bindchange="onEndDateChange">
+      <view class="filter-item">{{endDate || '结束日期'}}</view>
+    </picker>
+    <button class="btn btn-primary" style="height:60rpx;font-size:24rpx;padding:0 24rpx;" bindtap="doFilter">筛选</button>
+  </view>
+
+  <!-- 列表 -->
+  <view wx:if="{{list.length > 0}}">
+    <view wx:for="{{list}}" wx:key="id" class="card lottery-card" bindtap="showDetail" data-item="{{item}}">
+      <view style="display:flex;justify-content:space-between;align-items:center;">
+        <view class="issue-tag">第 {{item.issue}} 期</view>
+        <view style="font-size:24rpx;color:#909399;">{{item.drawDate || ''}}</view>
+      </view>
+      <view class="ball-row" style="margin-top:16rpx;">
+        <block wx:for="{{item.reds}}" wx:key="index">
+          <view class="ball ball-red">{{item}}</view>
+        </block>
+        <view class="ball ball-blue">{{item.blue}}</view>
+      </view>
+    </view>
+    <view wx:if="{{hasMore}}" style="text-align:center;padding:20rpx;color:#999;" bindtap="loadMore">加载更多</view>
+    <view wx:else style="text-align:center;padding:20rpx;color:#ccc;">— 已加载全部 —</view>
+  </view>
+  <view wx:else style="text-align:center;padding:80rpx;color:#999;">暂无数据</view>
+</scroll-view>

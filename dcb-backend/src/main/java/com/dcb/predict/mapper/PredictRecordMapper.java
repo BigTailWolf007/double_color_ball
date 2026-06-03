@@ -20,7 +20,8 @@ public interface PredictRecordMapper extends BaseMapper<PredictRecord> {
      * 分页查询预测号码
      */
     IPage<PredictRecord> selectPageByIssue(Page<PredictRecord> page,
-                                            @Param("issue") String issue);
+                                            @Param("issue") String issue,
+                                            @Param("userId") Long userId);
 
     /**
      * 批量更新命中结果
@@ -40,7 +41,8 @@ public interface PredictRecordMapper extends BaseMapper<PredictRecord> {
     /**
      * 批量查询多个期号已存在的所有 ballKey，返回 {issue, ballKey} 列表
      */
-    List<BallKeyRowDTO> selectBallKeysByIssues(@Param("issues") List<String> issues);
+    List<BallKeyRowDTO> selectBallKeysByIssues(@Param("issues") List<String> issues,
+                                                @Param("userId") Long userId);
 
     /**
      * 查询所有不重复的期号，按期号降序
@@ -48,9 +50,10 @@ public interface PredictRecordMapper extends BaseMapper<PredictRecord> {
     List<String> selectDistinctIssues();
 
     /**
-     * 查询指定期号列表的所有预测号码
+     * 查询指定期号列表的所有预测号码，可选按 userId 过滤
      */
-    List<PredictRecord> selectByIssues(@Param("issues") List<String> issues);
+    List<PredictRecord> selectByIssues(@Param("issues") List<String> issues,
+                                        @Param("userId") Long userId);
 
     /**
      * 模糊查询期号，倒序返回最多 limit 个

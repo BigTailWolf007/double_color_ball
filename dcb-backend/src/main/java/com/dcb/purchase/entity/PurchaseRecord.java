@@ -97,4 +97,8 @@ public class PurchaseRecord {
     /** 创建时间 */
     @TableField("fcreated_at")
     private LocalDateTime createdAt;
+
+    /** 所属用户（NULL=管理员录入的公共数据） */
+    @TableField("fuser_id")
+    private Long userId;
 }

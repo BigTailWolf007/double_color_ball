@@ -4,7 +4,8 @@ const SysConfig = (() => {
     'SYSTEM': '⚙️ 系统参数',
     'SCHEDULE': '⏰ 定时任务',
     'UPLOAD': '📁 文件上传',
-    'CACHE': '💾 缓存策略'
+    'CACHE': '💾 缓存策略',
+    'AUTH': '🔐 认证配置'
   }
 
   const typeHints = {

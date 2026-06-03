@@ -1,0 +1,39 @@
+.filter-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16rpx;
+}
+
+.filter-label {
+  font-size: 26rpx;
+  color: #666;
+  width: 140rpx;
+}
+
+.filter-input {
+  flex: 1;
+  height: 60rpx;
+  border: 1rpx solid #e0e0e0;
+  border-radius: 8rpx;
+  padding: 0 16rpx;
+  font-size: 26rpx;
+}
+
+.recommend-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+}
+
+.recommend-meta {
+  display: flex;
+  gap: 20rpx;
+  font-size: 22rpx;
+  color: #909399;
+}
+
+.btn-small {
+  height: 56rpx;
+  font-size: 24rpx;
+  padding: 0 24rpx;
+}

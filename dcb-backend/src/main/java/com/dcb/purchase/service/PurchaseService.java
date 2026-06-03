@@ -2,7 +2,11 @@ package com.dcb.purchase.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.dcb.auth.entity.User;
+import com.dcb.auth.mapper.UserMapper;
+import com.dcb.auth.service.AuthService;
 import com.dcb.common.enums.PrizeLevel;
+import com.dcb.common.exception.BizException;
 import com.dcb.common.result.PageResult;
 import com.dcb.common.util.LotteryUtils;
 import com.dcb.lottery.entity.LotteryResult;
@@ -24,11 +28,8 @@ import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * 购买记录服务
@@ -40,28 +41,53 @@ public class PurchaseService {
 
     private final PurchaseRecordMapper purchaseRecordMapper;
     private final LotteryService lotteryService;
+    private final AuthService authService;
+    private final UserMapper userMapper;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     /**
      * 批量录入购买记录，录入后自动计算中奖等级
      */
     @Transactional(rollbackFor = Exception.class)
-    public void add(List<PurchaseAddDTO> dtoList) {
-        log.info("批量录入购买记录，共{}组", dtoList.size());
+    public void add(List<PurchaseAddDTO> dtoList, Long userId) {
+        log.info("批量录入购买记录，共{}组，userId={}", dtoList.size(), userId);
+
+        // 查询当前用户已有 ballKey（含 admin 公共数据 NULL），用于去重
+        Set<String> existingKeys = new HashSet<>();
+        for (PurchaseAddDTO dto : dtoList) {
+            String allIssue = dto.getIssue();
+            if (allIssue != null && !allIssue.isEmpty()) {
+                List<String> keys = purchaseRecordMapper.selectBallKeysByIssue(allIssue);
+                // 过滤：只排除当前用户自己的和 NULL（公共）的 ballKey
+                for (String k : keys) {
+                    existingKeys.add(k);
+                }
+            }
+        }
+
+        int skip = 0;
         for (PurchaseAddDTO dto : dtoList) {
             LotteryUtils.validateRed(Arrays.asList(
                     dto.getRed1(), dto.getRed2(), dto.getRed3(),
                     dto.getRed4(), dto.getRed5(), dto.getRed6()));
             LotteryUtils.validateBlue(dto.getBlue());
 
+            String ballKey = LotteryUtils.buildBallKey(dto);
+            // 去重：同一用户已存在相同号码则跳过
+            if (!existingKeys.add(ballKey)) {
+                skip++;
+                continue;
+            }
+
             PurchaseRecord record = PurchaseRecord.builder()
                     .issue(dto.getIssue())
                     .red1(dto.getRed1()).red2(dto.getRed2()).red3(dto.getRed3())
                     .red4(dto.getRed4()).red5(dto.getRed5()).red6(dto.getRed6())
                     .blue(dto.getBlue())
-                    .ballKey(LotteryUtils.buildBallKey(dto))
+                    .ballKey(ballKey)
                     .quantity(dto.getQuantity())
                     .remark(dto.getRemark())
+                    .userId(dto.getUserId() != null ? dto.getUserId() : userId)
                     .sumVal(LotteryUtils.calcSum(dto.getRed1(), dto.getRed2(), dto.getRed3(),
                             dto.getRed4(), dto.getRed5(), dto.getRed6()))
                     .zoneRatio(LotteryUtils.calcZoneRatio(dto.getRed1(), dto.getRed2(), dto.getRed3(),
@@ -82,17 +108,25 @@ public class PurchaseService {
             }
             purchaseRecordMapper.insert(record);
         }
-        log.info("购买记录录入完成，共{}组", dtoList.size());
+        log.info("购买记录录入完成，共{}组，跳过重复{}组", dtoList.size() - skip, skip);
     }
 
     /**
-     * 按 ID 列表强制重算中奖等级（无论是否已计算过）
+     * 按 ID 列表强制重算中奖等级。管理员可重算全部，普通用户仅能重算自己的
      */
     @Transactional(rollbackFor = Exception.class)
-    public int recalcByIds(List<Long> ids) {
+    public int recalcByIds(List<Long> ids, Long userId, String role) {
         if (ids == null || ids.isEmpty()) return 0;
         List<PurchaseRecord> records = purchaseRecordMapper.selectBatchIds(ids);
         if (records.isEmpty()) return 0;
+        // 非管理员校验：只能重算自己的记录
+        if (!"ADMIN".equals(role)) {
+            for (PurchaseRecord r : records) {
+                if (r.getUserId() != null && !r.getUserId().equals(userId)) {
+                    throw new BizException("无权重算他人记录");
+                }
+            }
+        }
 
         // 按期号分组，批量查开奖号码
         Map<String, LotteryResult> lotteryCache = new HashMap<>();
@@ -139,10 +173,13 @@ public class PurchaseService {
      * 编辑购买记录（仅允许修改注数和备注），注数变更后重新计算奖金
      */
     @Transactional(rollbackFor = Exception.class)
-    public void update(Long id, PurchaseUpdateDTO dto) {
+    public void update(Long id, PurchaseUpdateDTO dto, Long userId, String role) {
         PurchaseRecord record = purchaseRecordMapper.selectById(id);
         if (record == null) {
             throw new IllegalArgumentException("购买记录不存在：" + id);
+        }
+        if (!"ADMIN".equals(role) && record.getUserId() != null && !record.getUserId().equals(userId)) {
+            throw new BizException("无权编辑他人记录");
         }
         int oldQuantity = record.getQuantity();
         record.setQuantity(dto.getQuantity());
@@ -163,26 +200,44 @@ public class PurchaseService {
     /**
      * 删除购买记录
      */
-    public void delete(Long id) {
+    public void delete(Long id, Long userId, String role) {
+        PurchaseRecord record = purchaseRecordMapper.selectById(id);
+        if (record == null) throw new BizException("购买记录不存在");
+        if (!"ADMIN".equals(role) && record.getUserId() != null && !record.getUserId().equals(userId)) {
+            throw new BizException("无权删除他人记录");
+        }
         purchaseRecordMapper.deleteById(id);
         log.info("删除购买记录，id：{}", id);
     }
 
     /**
-     * 按期号删除该期所有购买记录，返回删除条数
+     * 按期号删除该期所有购买记录。userId 为 null 则删除全部，否则仅删除该用户的
      */
-    public int deleteByIssue(String issue) {
-        int count = purchaseRecordMapper.delete(
-                new LambdaQueryWrapper<PurchaseRecord>().eq(PurchaseRecord::getIssue, issue));
-        log.info("按期号删除购买记录，期号：{}，共删除 {} 条", issue, count);
+    public int deleteByIssue(String issue, Long userId) {
+        LambdaQueryWrapper<PurchaseRecord> wrapper = new LambdaQueryWrapper<PurchaseRecord>()
+                .eq(PurchaseRecord::getIssue, issue);
+        if (userId != null) {
+            wrapper.eq(PurchaseRecord::getUserId, userId);
+        }
+        int count = purchaseRecordMapper.delete(wrapper);
+        log.info("按期号删除购买记录，期号：{}，userId：{}，共删除 {} 条", issue, userId, count);
         return count;
     }
 
     /**
-     * 按 ID 列表批量删除购买记录，返回删除条数
+     * 按 ID 列表批量删除购买记录。管理员可删全部，普通用户仅能删自己的
      */
-    public int deleteByIds(List<Long> ids) {
+    public int deleteByIds(List<Long> ids, Long userId, String role) {
         if (ids == null || ids.isEmpty()) return 0;
+        // 非管理员校验：只能删除自己的记录
+        if (!"ADMIN".equals(role)) {
+            List<PurchaseRecord> records = purchaseRecordMapper.selectBatchIds(ids);
+            for (PurchaseRecord r : records) {
+                if (r.getUserId() != null && !r.getUserId().equals(userId)) {
+                    throw new BizException("无权删除他人记录");
+                }
+            }
+        }
         int count = purchaseRecordMapper.deleteBatchIds(ids);
         log.info("批量删除购买记录，共删除 {} 条", count);
         return count;
@@ -196,18 +251,45 @@ public class PurchaseService {
     }
 
     /**
+     * 模糊查询用户名，用于用户筛选下拉提示
+     */
+    public List<Map<String, Object>> suggestUsers(String keyword) {
+        List<User> users = userMapper.selectList(
+                new LambdaQueryWrapper<User>()
+                        .like(User::getUsername, keyword == null ? "" : keyword)
+                        .or().like(User::getNickname, keyword == null ? "" : keyword)
+                        .last("LIMIT 10"));
+        return users.stream().map(u -> {
+            Map<String, Object> m = new HashMap<>();
+            m.put("id", u.getId());
+            m.put("username", u.getUsername());
+            m.put("nickname", u.getNickname());
+            return m;
+        }).collect(Collectors.toList());
+    }
+
+    /**
      * 分页查询购买记录
      */
-    public PageResult<PurchaseRecordVO> list(String issue, List<Integer> prizeLevels, int page, int size) {
-        log.info("Service.list: issue={}, prizeLevels={}, page={}, size={}", issue, prizeLevels, page, size);
+    public PageResult<PurchaseRecordVO> list(String issue, List<Integer> prizeLevels, int page, int size, Long userId) {
+        log.info("Service.list: issue={}, prizeLevels={}, page={}, size={}, userId={}", issue, prizeLevels, page, size, userId);
+        // 提取 -1（待计算），转换为 IS NULL 查询
+        boolean includeNullPrize = prizeLevels != null && prizeLevels.remove(Integer.valueOf(-1));
         Page<PurchaseRecord> pageParam = new Page<>(page, size);
         Page<PurchaseRecord> result = (Page<PurchaseRecord>) purchaseRecordMapper
-                .selectPageByCondition(pageParam, issue, prizeLevels);
+                .selectPageByCondition(pageParam, issue, prizeLevels, includeNullPrize, userId);
         log.info("Service.list result: total={}, records={}", result.getTotal(), result.getRecords().size());
 
+        List<PurchaseRecord> records = result.getRecords();
+
+        // 批量预加载：用户名 + 开奖号码
+        Map<Long, String> usernameMap = buildUsernameMap(records);
+        Map<String, LotteryResult> lotteryMap = lotteryService.getByIssues(
+                records.stream().map(PurchaseRecord::getIssue).distinct().collect(Collectors.toList()));
+
         List<PurchaseRecordVO> voList = new ArrayList<>();
-        for (PurchaseRecord r : result.getRecords()) {
-            voList.add(toVO(r));
+        for (PurchaseRecord r : records) {
+            voList.add(toVO(r, usernameMap, lotteryMap));
         }
         return PageResult.of(result.getTotal(), voList);
     }
@@ -215,8 +297,9 @@ public class PurchaseService {
     /**
      * 汇总统计：总投入、总奖金、盈亏
      */
-    public Map<String, Object> summary(String issue, List<Integer> prizeLevels) {
-        Map<String, Object> raw = purchaseRecordMapper.selectSummary(issue, prizeLevels);
+    public Map<String, Object> summary(String issue, List<Integer> prizeLevels, Long userId) {
+        boolean includeNullPrize = prizeLevels != null && prizeLevels.remove(Integer.valueOf(-1));
+        Map<String, Object> raw = purchaseRecordMapper.selectSummary(issue, prizeLevels, includeNullPrize, userId);
         if (raw == null) {
             raw = new HashMap<>();
         }
@@ -304,11 +387,30 @@ public class PurchaseService {
         }
     }
 
+    /** 从记录列表中收集所有非空 userId，批量查询用户名 */
+    private Map<Long, String> buildUsernameMap(List<PurchaseRecord> records) {
+        List<Long> userIds = records.stream()
+                .map(PurchaseRecord::getUserId)
+                .filter(id -> id != null)
+                .distinct()
+                .collect(Collectors.toList());
+        if (userIds.isEmpty()) return new HashMap<>();
+        List<User> users = userMapper.selectBatchIds(userIds);
+        return users.stream().collect(Collectors.toMap(User::getId, User::getUsername, (a, b) -> a));
+    }
+
     private PurchaseRecordVO toVO(PurchaseRecord r) {
+        return toVO(r, new HashMap<>(), new HashMap<>());
+    }
+
+    private PurchaseRecordVO toVO(PurchaseRecord r, Map<Long, String> usernameMap) {
+        return toVO(r, usernameMap, new HashMap<>());
+    }
+
+    private PurchaseRecordVO toVO(PurchaseRecord r, Map<Long, String> usernameMap, Map<String, LotteryResult> lotteryMap) {
         String desc = r.getPrizeLevel() == null ? "待计算"
                 : PrizeLevel.ofLevel(r.getPrizeLevel()).getDesc();
-        // 获取开奖号码用于前端命中高亮
-        LotteryResult lottery = lotteryService.getByIssue(r.getIssue());
+        LotteryResult lottery = lotteryMap.get(r.getIssue());
         return PurchaseRecordVO.builder()
                 .id(r.getId())
                 .issue(r.getIssue())
@@ -328,6 +430,7 @@ public class PurchaseService {
                 .zoneRatio(r.getZoneRatio())
                 .oddEvenRatio(r.getOddEvenRatio())
                 .rangeVal(r.getRangeVal())
+                .username(r.getUserId() != null ? usernameMap.get(r.getUserId()) : null)
                 .build();
     }
 }

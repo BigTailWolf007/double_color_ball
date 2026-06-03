@@ -47,8 +47,10 @@ CREATE TABLE IF NOT EXISTS t_purchase_record (
   fprize_level TINYINT COMMENT '中奖等级(1-6,0=未中,NULL=待计算)',
   fprize_money DECIMAL(12,2) COMMENT '总奖金',
   fremark      VARCHAR(200) COMMENT '备注',
+  fuser_id     BIGINT       DEFAULT NULL COMMENT '所属用户ID（NULL=管理员公共数据）',
   fcreated_at  DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-  UNIQUE KEY uk_ball_key (fball_key)
+  UNIQUE KEY uk_user_ball_key (fuser_id, fball_key),
+  INDEX idx_user_id (fuser_id)
 ) COMMENT '购买记录';
 
 -- 预测号码表
@@ -70,8 +72,10 @@ CREATE TABLE IF NOT EXISTS t_predict_record (
   fhit_red     TINYINT COMMENT '命中红球数(0-6,NULL=待开奖)',
   fhit_blue    TINYINT(1) COMMENT '是否命中蓝球(0/1,NULL=待开奖)',
   fprize_level TINYINT COMMENT '命中等级(1-6,0=未中,NULL=待开奖)',
+  fuser_id     BIGINT       DEFAULT NULL COMMENT '所属用户ID（NULL=管理员公共数据）',
   fcreated_at  DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-  UNIQUE KEY uk_ball_key (fball_key)
+  UNIQUE KEY uk_user_ball_key (fuser_id, fball_key),
+  INDEX idx_user_id (fuser_id)
 ) COMMENT '预测号码';
 
 -- 计算错误日志表
@@ -152,8 +156,13 @@ INSERT INTO t_sys_config (fconfig_key, fconfig_value, fconfig_desc, fconfig_type
 ('cache.recommend.size', '50',                                             '推荐缓存最大条目',  'INT',    'CACHE',       1),
 ('cache.recommend.expire','600',                                           '推荐缓存过期(秒)',  'INT',    'CACHE',       2),
 ('jwt.secret',            'dcb-jwt-secret-key-2026',                       'JWT签名密钥',       'STRING', 'AUTH',        1),
+('jwt.expire-hours',      '6',                                               'Token过期时间(小时)','INT',    'AUTH',        2),
 ('wx.appid',              '',                                               '微信小程序AppID',   'STRING', 'AUTH',        2),
 ('wx.secret',             '',                                               '微信小程序Secret',  'STRING', 'AUTH',        3);
+INSERT INTO t_sys_config (fconfig_key, fconfig_value, fconfig_desc, fconfig_type, fconfig_group, fsort_order) VALUES
+('wx.mchid',              '',                                               '微信支付商户号',    'STRING', 'AUTH',        4),
+('wx.mchkey',             '',                                               '微信支付API密钥',   'STRING', 'AUTH',        5),
+('wx.notify-url',         '',                                               '支付回调通知地址',  'STRING', 'AUTH',        6);
 
 -- 存量数据补填 fball_key（已有数据的库执行此脚本时使用）
 -- ALTER TABLE t_lottery_result ADD COLUMN fball_key VARCHAR(60) NOT NULL DEFAULT '' COMMENT '号码复合键：期号-红1-红2-红3-红4-红5-红6-蓝', ADD UNIQUE KEY uk_ball_key (fball_key);

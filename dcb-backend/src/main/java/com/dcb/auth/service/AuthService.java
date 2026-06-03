@@ -2,10 +2,13 @@ package com.dcb.auth.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.dcb.auth.entity.User;
+import com.dcb.auth.entity.UserActive;
+import com.dcb.auth.mapper.UserActiveMapper;
 import com.dcb.auth.mapper.UserMapper;
 import com.dcb.common.exception.BizException;
 import com.dcb.common.util.JwtUtils;
 import com.dcb.common.util.PasswordUtil;
+import com.dcb.common.util.WechatApiUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -20,7 +23,9 @@ import java.util.Map;
 public class AuthService {
 
     private final UserMapper userMapper;
+    private final UserActiveMapper userActiveMapper;
     private final JwtUtils jwtUtils;
+    private final WechatApiUtil wechatApiUtil;
 
     /**
      * 启动时确保默认管理员存在
@@ -67,8 +72,13 @@ public class AuthService {
         userMapper.updateById(user);
 
         String token = jwtUtils.generateToken(user.getId(), user.getRole(), "WEB");
+
+        // 记录活跃度
+        recordActive(user.getId(), "WEB");
+
         log.info("管理员登录：{}", username);
         java.util.Map<String, Object> map = new java.util.HashMap<>();
+        map.put("id", user.getId());
         map.put("token", token);
         map.put("nickname", user.getNickname());
         map.put("role", user.getRole());
@@ -76,9 +86,12 @@ public class AuthService {
     }
 
     /**
-     * 微信小程序登录（根据 openid 查找或创建用户）
+     * 微信小程序登录（code 换 openid，查找或创建用户）
      */
-    public Map<String, Object> wxLogin(String openid, String nickname, String avatar) {
+    public Map<String, Object> wxLogin(String code, String nickname, String avatar) {
+        // 调微信 API 用 code 换 openid
+        String openid = wechatApiUtil.code2Session(code).getOpenid();
+
         User user = userMapper.selectOne(
                 new LambdaQueryWrapper<User>().eq(User::getOpenid, openid));
 
@@ -106,11 +119,33 @@ public class AuthService {
         userMapper.updateById(user);
 
         String token = jwtUtils.generateToken(user.getId(), user.getRole(), "WX");
+
+        // 记录活跃度
+        recordActive(user.getId(), "WX");
+
         java.util.Map<String, Object> map = new java.util.HashMap<>();
+        map.put("id", user.getId());
         map.put("token", token);
         map.put("nickname", user.getNickname());
         map.put("role", user.getRole());
+        map.put("subscribeExpireAt", user.getSubscribeExpireAt());
         return map;
+    }
+
+    /**
+     * 记录活跃度
+     */
+    private void recordActive(Long userId, String loginType) {
+        try {
+            UserActive active = UserActive.builder()
+                    .userId(userId)
+                    .loginType(loginType)
+                    .createdAt(LocalDateTime.now())
+                    .build();
+            userActiveMapper.insert(active);
+        } catch (Exception e) {
+            log.warn("记录活跃失败 userId={}：{}", userId, e.getMessage());
+        }
     }
 
     /**

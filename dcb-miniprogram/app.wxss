@@ -1,0 +1,136 @@
+/* 双色球分析小程序 — 全局样式 */
+
+page {
+  background-color: #f5f5f5;
+  font-size: 28rpx;
+  color: #333;
+  font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+}
+
+/* 通用容器 */
+.container {
+  padding: 20rpx;
+}
+
+/* 卡片 */
+.card {
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 24rpx;
+  margin-bottom: 20rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
+}
+
+.card-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  margin-bottom: 16rpx;
+  color: #303133;
+}
+
+/* 按钮 */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 80rpx;
+  padding: 0 40rpx;
+  border-radius: 12rpx;
+  font-size: 28rpx;
+  border: none;
+}
+
+.btn-primary {
+  background: #d43030;
+  color: #fff;
+}
+
+.btn-default {
+  background: #f0f0f0;
+  color: #666;
+}
+
+.btn-block {
+  width: 100%;
+}
+
+/* 双色球号码 */
+.ball-row {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  flex-wrap: wrap;
+}
+
+.ball {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 50%;
+  font-size: 26rpx;
+  font-weight: 700;
+  color: #fff;
+}
+
+.ball-red {
+  background: #d43030;
+}
+
+.ball-blue {
+  background: #3b7dd8;
+}
+
+/* 统计数字 */
+.stat-value {
+  font-size: 48rpx;
+  font-weight: 700;
+  color: #303133;
+}
+
+.stat-label {
+  font-size: 24rpx;
+  color: #909399;
+  margin-top: 8rpx;
+}
+
+/* 列表项 */
+.list-item {
+  display: flex;
+  align-items: center;
+  padding: 20rpx 0;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.list-item:last-child {
+  border-bottom: none;
+}
+
+/* 标签 */
+.tag {
+  display: inline-block;
+  padding: 4rpx 16rpx;
+  border-radius: 8rpx;
+  font-size: 22rpx;
+}
+
+.tag-danger {
+  background: #fef0f0;
+  color: #f56c6c;
+}
+
+.tag-success {
+  background: #f0f9eb;
+  color: #67c23a;
+}
+
+.tag-warning {
+  background: #fdf6ec;
+  color: #e6a23c;
+}
+
+.tag-info {
+  background: #f4f4f5;
+  color: #909399;
+}

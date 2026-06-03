@@ -1,0 +1,50 @@
+<!-- 首页仪表盘 -->
+<scroll-view class="container" scroll-y refresher-enabled bindrefresherrefresh="onRefresh" refresher-triggered="{{refreshing}}">
+  <!-- 最新开奖 -->
+  <view class="card">
+    <view class="card-title">🎯 最新开奖</view>
+    <view wx:if="{{latest}}" class="lottery-result">
+      <view class="issue-tag">第 {{latest.issue}} 期</view>
+      <view class="ball-row" style="margin-top:16rpx;">
+        <block wx:for="{{latest.reds}}" wx:key="index">
+          <view class="ball ball-red">{{item}}</view>
+        </block>
+        <view class="ball ball-blue">{{latest.blue}}</view>
+      </view>
+    </view>
+    <view wx:else style="color:#909399;padding:20rpx 0;">暂无数据</view>
+  </view>
+
+  <!-- 统计卡片 -->
+  <view class="stat-cards">
+    <view class="card stat-card">
+      <view class="stat-value">{{stats.totalQuantity || 0}}</view>
+      <view class="stat-label">累计购买注数</view>
+    </view>
+    <view class="card stat-card">
+      <view class="stat-value" style="color:#67c23a;">{{stats.winCount || 0}}</view>
+      <view class="stat-label">中奖次数</view>
+    </view>
+    <view class="card stat-card">
+      <view class="stat-value" style="color:{{stats.profit >= 0 ? '#67c23a' : '#f56c6c'}};">¥{{stats.profit || 0}}</view>
+      <view class="stat-label">总盈亏</view>
+    </view>
+  </view>
+
+  <!-- 今日推荐 -->
+  <view class="card">
+    <view class="card-title">🧩 今日推荐</view>
+    <view wx:if="{{recommends && recommends.length > 0}}">
+      <view wx:for="{{recommends}}" wx:key="index" class="recommend-item">
+        <view class="ball-row">
+          <block wx:for="{{item.reds}}" wx:key="idx">
+            <view class="ball ball-red" style="width:48rpx;height:48rpx;font-size:22rpx;">{{item}}</view>
+          </block>
+          <view class="ball ball-blue" style="width:48rpx;height:48rpx;font-size:22rpx;">{{item.blue}}</view>
+        </view>
+        <button class="btn btn-primary" style="height:56rpx;font-size:24rpx;padding:0 20rpx;" bindtap="adoptRecommend" data-reds="{{item.reds}}" data-blue="{{item.blue}}">采纳</button>
+      </view>
+    </view>
+    <view wx:else style="color:#909399;padding:20rpx 0;">暂无推荐</view>
+  </view>
+</scroll-view>

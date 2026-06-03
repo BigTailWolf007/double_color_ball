@@ -170,10 +170,11 @@ public class AdminController {
     }
 
     private long countDau(LocalDate date) {
-        return userActiveMapper.selectCount(
+        return userActiveMapper.selectList(
                 new LambdaQueryWrapper<UserActive>()
                         .ge(UserActive::getCreatedAt, date.atStartOfDay())
-                        .lt(UserActive::getCreatedAt, date.plusDays(1).atStartOfDay()));
+                        .lt(UserActive::getCreatedAt, date.plusDays(1).atStartOfDay()))
+                .stream().map(UserActive::getUserId).distinct().count();
     }
 
     private long countMau(LocalDate from, LocalDate to) {

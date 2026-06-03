@@ -21,13 +21,17 @@ public interface PurchaseRecordMapper extends BaseMapper<PurchaseRecord> {
      */
     IPage<PurchaseRecord> selectPageByCondition(Page<PurchaseRecord> page,
                                                  @Param("issue") String issue,
-                                                 @Param("prizeLevels") List<Integer> prizeLevels);
+                                                 @Param("prizeLevels") List<Integer> prizeLevels,
+                                                 @Param("includeNullPrize") boolean includeNullPrize,
+                                                 @Param("userId") Long userId);
 
     /**
      * 汇总统计：总注数、总奖金
      */
     Map<String, Object> selectSummary(@Param("issue") String issue,
-                                      @Param("prizeLevels") List<Integer> prizeLevels);
+                                      @Param("prizeLevels") List<Integer> prizeLevels,
+                                      @Param("includeNullPrize") boolean includeNullPrize,
+                                      @Param("userId") Long userId);
 
     /**
      * 批量更新中奖等级和奖金

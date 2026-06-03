@@ -1,6 +1,7 @@
 package com.dcb.auth.controller;
 
 import com.dcb.auth.service.AuthService;
+import com.dcb.common.exception.BizException;
 import com.dcb.common.result.Result;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,14 +33,16 @@ public class AuthController {
         return Result.success(authService.webLogin(username, password));
     }
 
-    /** 微信小程序登录 */
+    /** 微信小程序登录（code 换 openid） */
     @PostMapping("/wx-login")
     public Result<Map<String, Object>> wxLogin(@RequestBody Map<String, String> body) {
-        String openid = body.get("openid");
+        String code = body.get("code");
         String nickname = body.get("nickname");
         String avatar = body.get("avatar");
-        // TODO: 正式环境需后端调微信接口用 code 换 openid
-        return Result.success(authService.wxLogin(openid, nickname, avatar));
+        if (code == null || code.isEmpty()) {
+            throw new BizException("code 不能为空");
+        }
+        return Result.success(authService.wxLogin(code, nickname, avatar));
     }
 
     /** 获取当前用户信息 */
